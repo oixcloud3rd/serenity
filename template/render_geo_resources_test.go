@@ -73,7 +73,7 @@ func TestRenderRuleSetMigratesDownloadDetourToHTTPClient(t *testing.T) {
 			Type: C.RuleSetTypeRemote,
 			DefaultOptions: boxOption.RuleSet{
 				Type:   C.RuleSetTypeRemote,
-				Tag:    "remote",
+				Tag:    []string{"remote"},
 				Format: C.RuleSetFormatBinary,
 				RemoteOptions: boxOption.RemoteRuleSet{
 					URL:            "https://example.com/rule-set.srs",

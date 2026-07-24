@@ -1,4 +1,7 @@
 project_name: serenity
+before:
+  hooks:
+    - sh -c 'test -n "$OIXCLOUD_SUBSCRIPTION_HMAC_KEY" || { echo "missing OIXCLOUD_SUBSCRIPTION_HMAC_KEY" >&2; exit 1; }'
 builds:
   - id: main
     main: ./cmd/serenity
@@ -6,7 +9,7 @@ builds:
       - -v
       - -trimpath
     ldflags:
-      - -X github.com/sagernet/serenity/constant.Version={{ .Version }} -s -w -buildid=
+      - -X github.com/sagernet/serenity/constant.Version={{ .Version }} -X github.com/sagernet/serenity/constant.OIXCloudSubscriptionHMACKey={{ .Env.OIXCLOUD_SUBSCRIPTION_HMAC_KEY }} -s -w -buildid=
     env:
       - CGO_ENABLED=0
     targets:

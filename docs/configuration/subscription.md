@@ -55,12 +55,28 @@ Subscription URL.
 Supports:
 
 - HTTP/HTTPS URLs: `https://example.com/subscription`
+- oixCloud managed URLs: `oixcloud://<token>` (query parameters are forwarded unchanged)
 - Local file paths: `./subscriptions/nodes.txt` or `/absolute/path/to/nodes.txt`
 - File URI: `file:///path/to/nodes.txt`
 
 !!! note ""
 
     Relative file paths are resolved relative to the configuration file directory.
+
+#### oixCloud managed subscriptions
+
+`oixcloud://` subscriptions use the same Clash.Meta parser, conversion pipeline, process rules, cache, and template rendering as ordinary Clash subscriptions. Serenity requests the primary oixCloud API first and falls back to the secondary API when the primary response cannot be fetched, authenticated, decrypted, or parsed.
+
+Every request uses a temporary age X25519 recipient. Serenity requires a valid HMAC-SHA256 response signature and an age-armored encrypted configuration; missing signatures, plaintext responses, invalid armor, or failed decryption are rejected. Credentials and complete managed URLs are never included in errors or logs. A refresh updates the bbolt cache only after verification, decryption, and parsing produce at least one valid outbound or endpoint, so a failed refresh preserves the last valid content and timestamp.
+
+The supported protocol set is the runnable intersection of the pinned FlClash Clash.Meta parser and the oixCloud sing-box `v1.14.0-beta.1` fork:
+
+- Outbounds: AnyTLS, Direct, HTTP, Hysteria, Hysteria2, Reject (as Block), Snell, SOCKS5, Shadowsocks, SSH, Trojan, TUIC, VLESS, and VMess.
+- Endpoints: WireGuard, OpenVPN (as an OpenVPN client), and Tailscale.
+
+Unsupported Clash-only types are reported by name while other valid entries in the same subscription remain available. Subscription endpoints are automatically merged into the profile's `endpoints` and their tags participate in generated selectors, URLTests, extra groups, default groups, filtering, renaming, emoji removal, and duplicate-tag handling. Outbound-specific rewrite fields continue to affect outbounds only.
+
+The binary must be built with `OIXCLOUD_SUBSCRIPTION_HMAC_KEY`; builds without it continue to support all non-oixCloud subscription sources and return a clear error only when an `oixcloud://` URL is used. See [Build from source](../installation/build-from-source.md).
 
 #### user_agent
 
@@ -74,11 +90,11 @@ User-Agent in HTTP request.
 
     You can ignore the JSON Array [] tag when the content is only one item
 
-Process rules for filtering, renaming, and modifying outbounds.
+Process rules for filtering and renaming subscription outbounds and endpoints, and for modifying outbounds.
 
 #### process.filter
 
-Regexp filter rules, match outbound tag name.
+Regexp filter rules, match outbound or endpoint tag name.
 
 Only outbounds matching these patterns will be processed.
 
@@ -90,7 +106,7 @@ Outbounds matching these patterns will be excluded from processing.
 
 #### process.filter_type
 
-Filter rules, match outbound type (e.g., `vmess`, `vless`, `trojan`, `shadowsocks`).
+Filter rules, match outbound or endpoint type (e.g., `vmess`, `vless`, `trojan`, `wireguard`).
 
 #### process.exclude_type
 
@@ -102,11 +118,11 @@ Invert filter results.
 
 #### process.remove
 
-Remove outbounds that match the rules.
+Remove outbounds or endpoints that match the rules.
 
 #### process.rename
 
-Regexp rename rules, matching outbounds will be renamed.
+Regexp rename rules; matching outbounds and endpoints will be renamed.
 
 ```json
 {

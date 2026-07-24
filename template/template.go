@@ -44,7 +44,12 @@ func (t *Template) Render(ctx context.Context, metadata M.Metadata, profileName 
 	var options boxOption.Options
 	options.Log = t.Log
 	options.Endpoints = endpoints
-	err := t.renderDNS(ctx, metadata, &options)
+	dedupedSubscriptions, err := deduplicateTemplateSubscriptions(subscriptions, t.DeduplicationStrategy)
+	if err != nil {
+		return nil, E.Cause(err, "deduplicate subscriptions")
+	}
+	subscriptions = dedupedSubscriptions
+	err = t.renderDNS(ctx, metadata, &options)
 	if err != nil {
 		return nil, E.Cause(err, "render dns")
 	}
@@ -52,7 +57,7 @@ func (t *Template) Render(ctx context.Context, metadata M.Metadata, profileName 
 	if err != nil {
 		return nil, E.Cause(err, "render route")
 	}
-	err = t.renderEndpoints(metadata, &options)
+	err = t.renderEndpoints(metadata, &options, subscriptions)
 	if err != nil {
 		return nil, E.Cause(err, "render endpoints")
 	}

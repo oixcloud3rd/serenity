@@ -69,7 +69,7 @@ func TestRenderDNSFakeIPRulesWithDefaultRules(t *testing.T) {
 		if rule.DefaultOptions.Action == C.RuleActionTypeEvaluate {
 			evaluateRuleIndex = index
 		}
-		if rule.DefaultOptions.MatchResponse {
+		if rule.DefaultOptions.MatchResponse.IsEnabled() {
 			matchResponseRuleIndex = index
 		}
 		if rule.DefaultOptions.Action == C.RuleActionTypeRoute &&

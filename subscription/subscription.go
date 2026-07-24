@@ -33,11 +33,13 @@ type Manager struct {
 
 type Subscription struct {
 	option.Subscription
-	rawServers  []boxOption.Outbound
-	processes   []*ProcessOptions
-	Servers     []boxOption.Outbound
-	LastUpdated time.Time
-	LastEtag    string
+	rawServers   []boxOption.Outbound
+	rawEndpoints []boxOption.Endpoint
+	processes    []*ProcessOptions
+	Servers      []boxOption.Outbound
+	Endpoints    []boxOption.Endpoint
+	LastUpdated  time.Time
+	LastEtag     string
 }
 
 func NewSubscriptionManager(ctx context.Context, logger logger.Logger, cacheFile *cachefile.CacheFile, rawSubscriptions []option.Subscription, basePath string) (*Manager, error) {
@@ -85,6 +87,7 @@ func (m *Manager) Start() error {
 		savedSubscription := m.cacheFile.LoadSubscription(m.ctx, subscription.Name)
 		if savedSubscription != nil {
 			subscription.rawServers = savedSubscription.Content
+			subscription.rawEndpoints = savedSubscription.Endpoints
 			subscription.LastUpdated = savedSubscription.LastUpdated
 			subscription.LastEtag = savedSubscription.LastEtag
 			m.processSubscription(subscription, false)
@@ -95,8 +98,12 @@ func (m *Manager) Start() error {
 
 func (m *Manager) processSubscription(s *Subscription, onUpdate bool) {
 	servers := s.rawServers
+	endpoints := s.rawEndpoints
 	for _, process := range s.processes {
+		renameMap := process.RenameMap(servers, endpoints)
 		servers = process.Process(servers)
+		endpoints = process.ProcessEndpoints(endpoints)
+		RewriteRenamedDetours(servers, endpoints, renameMap)
 	}
 	if s.DeDuplication {
 		originLen := len(servers)
@@ -104,8 +111,14 @@ func (m *Manager) processSubscription(s *Subscription, onUpdate bool) {
 		if onUpdate && originLen != len(servers) {
 			m.logger.Info("excluded ", originLen-len(servers), " duplicated servers in ", s.Name)
 		}
+		originEndpointLen := len(endpoints)
+		endpoints = DeduplicateEndpoints(endpoints)
+		if onUpdate && originEndpointLen != len(endpoints) {
+			m.logger.Info("excluded ", originEndpointLen-len(endpoints), " duplicated endpoints in ", s.Name)
+		}
 	}
 	s.Servers = servers
+	s.Endpoints = endpoints
 }
 
 func (m *Manager) PostStart(headless bool) error {
@@ -154,6 +167,13 @@ func (m *Manager) updateAll() {
 }
 
 func (m *Manager) update(subscription *Subscription) error {
+	managedURL, isOIXCloud, err := parseOIXCloudURL(subscription.URL)
+	if err != nil {
+		return err
+	}
+	if isOIXCloud {
+		return m.updateOIXCloud(subscription, managedURL)
+	}
 	// Check if URL is a local file path
 	if isLocalFile(subscription.URL) {
 		return m.updateFromFile(subscription)
@@ -181,6 +201,7 @@ func (m *Manager) update(subscription *Subscription) error {
 		subscription.LastUpdated = time.Now()
 		err = m.cacheFile.StoreSubscription(m.ctx, subscription.Name, &cachefile.Subscription{
 			Content:     subscription.rawServers,
+			Endpoints:   subscription.rawEndpoints,
 			LastUpdated: subscription.LastUpdated,
 			LastEtag:    subscription.LastEtag,
 		})
@@ -198,11 +219,15 @@ func (m *Manager) update(subscription *Subscription) error {
 		return err
 	}
 	response.Body.Close()
-	rawServers, err := parser.ParseSubscription(m.ctx, string(content))
-	if err != nil {
+	result, err := parser.ParseSubscription(m.ctx, string(content))
+	if err != nil && len(result.Outbounds)+len(result.Endpoints) == 0 {
 		return err
 	}
-	subscription.rawServers = rawServers
+	if err != nil {
+		m.logger.Warn("subscription ", subscription.Name, " contains skipped proxies: ", err)
+	}
+	subscription.rawServers = result.Outbounds
+	subscription.rawEndpoints = result.Endpoints
 	m.processSubscription(subscription, true)
 	eTagHeader := response.Header.Get("Etag")
 	if eTagHeader != "" {
@@ -211,13 +236,14 @@ func (m *Manager) update(subscription *Subscription) error {
 	subscription.LastUpdated = time.Now()
 	err = m.cacheFile.StoreSubscription(m.ctx, subscription.Name, &cachefile.Subscription{
 		Content:     subscription.rawServers,
+		Endpoints:   subscription.rawEndpoints,
 		LastUpdated: subscription.LastUpdated,
 		LastEtag:    subscription.LastEtag,
 	})
 	if err != nil {
 		return err
 	}
-	m.logger.Info("updated subscription ", subscription.Name, ": ", len(subscription.rawServers), " servers")
+	m.logger.Info("updated subscription ", subscription.Name, ": ", len(subscription.rawServers), " outbounds, ", len(subscription.rawEndpoints), " endpoints")
 	return nil
 }
 
@@ -245,18 +271,23 @@ func (m *Manager) updateFromFile(subscription *Subscription) error {
 	}
 
 	// Parse subscription content
-	rawServers, err := parser.ParseSubscription(m.ctx, string(content))
-	if err != nil {
+	result, err := parser.ParseSubscription(m.ctx, string(content))
+	if err != nil && len(result.Outbounds)+len(result.Endpoints) == 0 {
 		return E.Cause(err, "parse subscription")
 	}
+	if err != nil {
+		m.logger.Warn("subscription ", subscription.Name, " contains skipped proxies: ", err)
+	}
 
-	subscription.rawServers = rawServers
+	subscription.rawServers = result.Outbounds
+	subscription.rawEndpoints = result.Endpoints
 	m.processSubscription(subscription, true)
 	subscription.LastUpdated = time.Now()
 
 	// Store to cache
 	err = m.cacheFile.StoreSubscription(m.ctx, subscription.Name, &cachefile.Subscription{
 		Content:     subscription.rawServers,
+		Endpoints:   subscription.rawEndpoints,
 		LastUpdated: subscription.LastUpdated,
 		LastEtag:    "",
 	})
@@ -264,6 +295,6 @@ func (m *Manager) updateFromFile(subscription *Subscription) error {
 		return err
 	}
 
-	m.logger.Info("updated subscription ", subscription.Name, " from file: ", len(subscription.rawServers), " servers")
+	m.logger.Info("updated subscription ", subscription.Name, " from file: ", len(subscription.rawServers), " outbounds, ", len(subscription.rawEndpoints), " endpoints")
 	return nil
 }

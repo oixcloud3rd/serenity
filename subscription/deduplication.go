@@ -2,31 +2,21 @@ package subscription
 
 import (
 	"context"
+	"net"
 	"net/netip"
+	"reflect"
+	"strconv"
 	"sync"
 
-	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	dns "github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/task"
 )
 
 func Deduplication(ctx context.Context, servers []option.Outbound) []option.Outbound {
 	resolveCtx := &resolveContext{
-		ctx: ctx,
-		dnsClient: dns.NewClient(dns.ClientOptions{
-			DisableExpire: true,
-			Logger:        log.NewNOPFactory().Logger(),
-		}),
-		dnsTransport: common.Must1(dns.NewTLSTransport(dns.TransportOptions{
-			Context:      ctx,
-			Dialer:       N.SystemDialer,
-			Address:      "tls://1.1.1.1",
-			ClientSubnet: netip.MustParsePrefix("114.114.114.114/24"),
-		})),
+		ctx:      ctx,
+		resolver: net.DefaultResolver,
 	}
 
 	uniqueServers := make([]netip.AddrPort, len(servers))
@@ -64,10 +54,60 @@ func Deduplication(ctx context.Context, servers []option.Outbound) []option.Outb
 	return newServers
 }
 
+func DeduplicateEndpoints(endpoints []option.Endpoint) []option.Endpoint {
+	var result []option.Endpoint
+	seenDestinations := make(map[string]bool)
+	for _, endpoint := range endpoints {
+		destination := endpointDestination(endpoint)
+		if destination != "" {
+			key := endpoint.Type + "\x00" + destination
+			if seenDestinations[key] {
+				continue
+			}
+			seenDestinations[key] = true
+		} else {
+			duplicate := false
+			for _, existing := range result {
+				if existing.Type == endpoint.Type && reflect.DeepEqual(existing.Options, endpoint.Options) {
+					duplicate = true
+					break
+				}
+			}
+			if duplicate {
+				continue
+			}
+		}
+		result = append(result, endpoint)
+	}
+	return result
+}
+
+func endpointDestination(endpoint option.Endpoint) string {
+	switch endpointOptions := endpoint.Options.(type) {
+	case *option.WireGuardEndpointOptions:
+		if len(endpointOptions.Peers) > 0 {
+			peer := endpointOptions.Peers[0]
+			return net.JoinHostPort(peer.Address, strconv.Itoa(int(peer.Port)))
+		}
+	case *option.OpenVPNClientEndpointOptions:
+		if endpointOptions.Server != "" {
+			return net.JoinHostPort(endpointOptions.Server, strconv.Itoa(int(endpointOptions.ServerPort)))
+		}
+		if len(endpointOptions.Servers) > 0 {
+			server := endpointOptions.Servers[0]
+			return net.JoinHostPort(server.Server, strconv.Itoa(int(server.ServerPort)))
+		}
+	case *option.TailscaleEndpointOptions:
+		if endpointOptions.ControlURL != "" || endpointOptions.ExitNode != "" {
+			return endpointOptions.ControlURL + "\x00" + endpointOptions.ExitNode
+		}
+	}
+	return ""
+}
+
 type resolveContext struct {
-	ctx          context.Context
-	dnsClient    *dns.Client
-	dnsTransport dns.Transport
+	ctx      context.Context
+	resolver *net.Resolver
 }
 
 func resolveDestination(ctx *resolveContext, server option.Outbound) netip.AddrPort {
@@ -80,11 +120,16 @@ func resolveDestination(ctx *resolveContext, server option.Outbound) netip.AddrP
 		return serverOptions.AddrPort()
 	}
 	if M.IsDomainName(serverOptions.Fqdn) {
-		addresses, lookupErr := ctx.dnsClient.Lookup(ctx.ctx, ctx.dnsTransport, serverOptions.Fqdn, dns.QueryOptions{
-			Strategy: dns.DomainStrategyPreferIPv4,
-		})
+		addresses, lookupErr := ctx.resolver.LookupNetIP(ctx.ctx, "ip", serverOptions.Fqdn)
 		if lookupErr == nil && len(addresses) > 0 {
-			return netip.AddrPortFrom(addresses[0], serverOptions.Port)
+			address := addresses[0]
+			for _, candidate := range addresses {
+				if candidate.Is4() {
+					address = candidate
+					break
+				}
+			}
+			return netip.AddrPortFrom(address, serverOptions.Port)
 		}
 	}
 	return netip.AddrPort{}

@@ -3,7 +3,7 @@ COMMIT = $(shell git rev-parse --short HEAD)
 TAG = $(shell git describe --tags --always)
 VERSION = $(TAG:v%=%)
 
-PARAMS = -v -trimpath -ldflags "-X 'github.com/sagernet/serenity/constant.Version=$(VERSION)' -s -w -buildid="
+PARAMS = -v -trimpath -ldflags "-X 'github.com/sagernet/serenity/constant.Version=$(VERSION)' -X 'github.com/sagernet/serenity/constant.OIXCloudSubscriptionHMACKey=$(OIXCLOUD_SUBSCRIPTION_HMAC_KEY)' -s -w -buildid="
 MAIN_PARAMS = $(PARAMS)
 MAIN = ./cmd/serenity
 PREFIX ?= $(shell go env GOPATH)
@@ -11,10 +11,10 @@ PREFIX ?= $(shell go env GOPATH)
 .PHONY: release docs
 
 build:
-	go build $(MAIN_PARAMS) $(MAIN)
+	@go build $(MAIN_PARAMS) $(MAIN)
 
 install:
-	go build -o $(PREFIX)/bin/$(NAME) $(MAIN_PARAMS) $(MAIN)
+	@go build -o $(PREFIX)/bin/$(NAME) $(MAIN_PARAMS) $(MAIN)
 
 fmt:
 	@gofumpt -l -w .

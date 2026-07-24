@@ -42,11 +42,6 @@ func (t *Template) renderOutbounds(metadata M.Metadata, options *boxOption.Optio
 	if urlTestTag == "" {
 		urlTestTag = DefaultURLTestTag
 	}
-	dedupedSubscriptions, err := deduplicateTemplateSubscriptions(subscriptions, t.DeduplicationStrategy)
-	if err != nil {
-		return err
-	}
-	subscriptions = dedupedSubscriptions
 	outboundToString := func(it boxOption.Outbound) string {
 		return it.Tag
 	}
@@ -67,12 +62,15 @@ func (t *Template) renderOutbounds(metadata M.Metadata, options *boxOption.Optio
 	)
 
 	for _, it := range subscriptions {
-		if len(it.Servers) == 0 {
+		if len(it.Servers)+len(it.Endpoints) == 0 {
 			continue
 		}
 		joinOutbounds := common.Map(it.Servers, func(it boxOption.Outbound) string {
 			return it.Tag
 		})
+		joinOutbounds = append(joinOutbounds, common.Map(it.Endpoints, func(it boxOption.Endpoint) string {
+			return it.Tag
+		})...)
 		if it.GenerateSelector {
 			selectorOptions := common.PtrValueOrDefault(it.CustomSelector)
 			selectorOutbound := boxOption.Outbound{
@@ -129,7 +127,8 @@ func (t *Template) renderOutbounds(metadata M.Metadata, options *boxOption.Optio
 		}
 		var outboundTags []string
 		for _, it := range subscriptions {
-			subscriptionTags := common.Filter(common.Map(it.Servers, outboundToString), func(outboundTag string) bool {
+			allSubscriptionTags := append(common.Map(it.Servers, outboundToString), common.Map(it.Endpoints, func(endpoint boxOption.Endpoint) string { return endpoint.Tag })...)
+			subscriptionTags := common.Filter(allSubscriptionTags, func(outboundTag string) bool {
 				if len(extraGroup.filter) > 0 {
 					if !common.Any(extraGroup.filter, func(it *regexp.Regexp) bool {
 						return it.MatchString(outboundTag)
@@ -194,7 +193,7 @@ func (t *Template) renderOutbounds(metadata M.Metadata, options *boxOption.Optio
 		sort.Strings(extraTags)
 		if len(extraTags) == 0 || extraGroup.filter != nil || extraGroup.exclude != nil {
 			extraTags = append(extraTags, common.Filter(common.FlatMap(subscriptions, func(it *subscription.Subscription) []string {
-				return common.Map(it.Servers, outboundToString)
+				return append(common.Map(it.Servers, outboundToString), common.Map(it.Endpoints, func(endpoint boxOption.Endpoint) string { return endpoint.Tag })...)
 			}), func(outboundTag string) bool {
 				if len(extraGroup.filter) > 0 {
 					if !common.Any(extraGroup.filter, func(it *regexp.Regexp) bool {

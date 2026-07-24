@@ -233,6 +233,123 @@ func (o *ProcessOptions) Process(outbounds []boxOption.Outbound) []boxOption.Out
 	return newOutbounds
 }
 
+func (o *ProcessOptions) ProcessEndpoints(endpoints []boxOption.Endpoint) []boxOption.Endpoint {
+	newEndpoints := make([]boxOption.Endpoint, 0, len(endpoints))
+	renameResult := make(map[string]string)
+	for _, endpoint := range endpoints {
+		inProcess := o.matches(endpoint.Tag, endpoint.Type)
+		if o.Invert {
+			inProcess = !inProcess
+		}
+		if !inProcess {
+			newEndpoints = append(newEndpoints, endpoint)
+			continue
+		}
+		if o.Remove {
+			continue
+		}
+		originTag := endpoint.Tag
+		for _, rename := range o.rename {
+			endpoint.Tag = rename.From.ReplaceAllString(endpoint.Tag, rename.To)
+		}
+		if o.RemoveEmoji {
+			endpoint.Tag = removeEmojis(endpoint.Tag)
+		}
+		endpoint.Tag = strings.TrimSpace(endpoint.Tag)
+		if originTag != endpoint.Tag {
+			renameResult[originTag] = endpoint.Tag
+		}
+		newEndpoints = append(newEndpoints, endpoint)
+	}
+	if len(renameResult) > 0 {
+		for i, endpoint := range newEndpoints {
+			if dialerOptionsWrapper, ok := endpoint.Options.(boxOption.DialerOptionsWrapper); ok {
+				dialerOptions := dialerOptionsWrapper.TakeDialerOptions()
+				if newTag, loaded := renameResult[dialerOptions.Detour]; loaded {
+					dialerOptions.Detour = newTag
+					dialerOptionsWrapper.ReplaceDialerOptions(dialerOptions)
+					newEndpoints[i] = endpoint
+				}
+			}
+		}
+	}
+	return newEndpoints
+}
+
+func (o *ProcessOptions) RenameMap(outbounds []boxOption.Outbound, endpoints []boxOption.Endpoint) map[string]string {
+	if o.Remove {
+		return nil
+	}
+	result := make(map[string]string)
+	apply := func(tag string, itemType string) {
+		matched := o.matches(tag, itemType)
+		if o.Invert {
+			matched = !matched
+		}
+		if !matched {
+			return
+		}
+		newTag := tag
+		for _, rename := range o.rename {
+			newTag = rename.From.ReplaceAllString(newTag, rename.To)
+		}
+		if o.RemoveEmoji {
+			newTag = removeEmojis(newTag)
+		}
+		newTag = strings.TrimSpace(newTag)
+		if tag != newTag {
+			result[tag] = newTag
+		}
+	}
+	for _, outbound := range outbounds {
+		apply(outbound.Tag, outbound.Type)
+	}
+	for _, endpoint := range endpoints {
+		apply(endpoint.Tag, endpoint.Type)
+	}
+	return result
+}
+
+func RewriteRenamedDetours(outbounds []boxOption.Outbound, endpoints []boxOption.Endpoint, renameMap map[string]string) {
+	if len(renameMap) == 0 {
+		return
+	}
+	for _, outbound := range outbounds {
+		if wrapper, ok := outbound.Options.(boxOption.DialerOptionsWrapper); ok {
+			rewriteRenamedDetour(wrapper, renameMap)
+		}
+	}
+	for _, endpoint := range endpoints {
+		if wrapper, ok := endpoint.Options.(boxOption.DialerOptionsWrapper); ok {
+			rewriteRenamedDetour(wrapper, renameMap)
+		}
+	}
+}
+
+func rewriteRenamedDetour(wrapper boxOption.DialerOptionsWrapper, renameMap map[string]string) {
+	dialerOptions := wrapper.TakeDialerOptions()
+	if renamed, loaded := renameMap[dialerOptions.Detour]; loaded {
+		dialerOptions.Detour = renamed
+		wrapper.ReplaceDialerOptions(dialerOptions)
+	}
+}
+
+func (o *ProcessOptions) matches(tag string, itemType string) bool {
+	if len(o.filter) == 0 && len(o.FilterType) == 0 && len(o.exclude) == 0 && len(o.ExcludeType) == 0 {
+		return true
+	}
+	if len(o.filter) > 0 && common.Any(o.filter, func(it *regexp.Regexp) bool { return it.MatchString(tag) }) {
+		return true
+	}
+	if len(o.FilterType) > 0 && common.Contains(o.FilterType, itemType) {
+		return true
+	}
+	if len(o.exclude) > 0 && !common.Any(o.exclude, func(it *regexp.Regexp) bool { return it.MatchString(tag) }) {
+		return true
+	}
+	return len(o.ExcludeType) > 0 && !common.Contains(o.ExcludeType, itemType)
+}
+
 func removeEmojis(s string) string {
 	var runes []rune
 	for _, r := range s {

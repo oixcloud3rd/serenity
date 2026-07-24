@@ -7,21 +7,35 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-var subscriptionParsers = []func(ctx context.Context, content string) ([]option.Outbound, error){
-	ParseBoxSubscription,
-	ParseClashSubscription,
-	ParseSIP008Subscription,
-	ParseRawSubscription,
+type Result struct {
+	Outbounds []option.Outbound
+	Endpoints []option.Endpoint
 }
 
-func ParseSubscription(ctx context.Context, content string) ([]option.Outbound, error) {
+type subscriptionParser func(ctx context.Context, content string) (Result, error)
+
+func outboundParser(parser func(context.Context, string) ([]option.Outbound, error)) subscriptionParser {
+	return func(ctx context.Context, content string) (Result, error) {
+		outbounds, err := parser(ctx, content)
+		return Result{Outbounds: outbounds}, err
+	}
+}
+
+var subscriptionParsers = []subscriptionParser{
+	outboundParser(ParseBoxSubscription),
+	ParseClashSubscription,
+	outboundParser(ParseSIP008Subscription),
+	outboundParser(ParseRawSubscription),
+}
+
+func ParseSubscription(ctx context.Context, content string) (Result, error) {
 	var pErr error
 	for _, parser := range subscriptionParsers {
-		servers, err := parser(ctx, content)
-		if len(servers) > 0 {
-			return servers, nil
+		result, err := parser(ctx, content)
+		if len(result.Outbounds)+len(result.Endpoints) > 0 {
+			return result, err
 		}
 		pErr = E.Errors(pErr, err)
 	}
-	return nil, E.Cause(pErr, "no servers found")
+	return Result{}, E.Cause(pErr, "no servers or endpoints found")
 }

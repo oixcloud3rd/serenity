@@ -16,7 +16,16 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.23
+          go-version: ^1.26
+
+      - name: Require oixCloud subscription signing key
+        env:
+          OIXCLOUD_SUBSCRIPTION_HMAC_KEY: ${{ secrets.OIXCLOUD_SUBSCRIPTION_HMAC_KEY }}
+        run: |
+          if [ -z "$OIXCLOUD_SUBSCRIPTION_HMAC_KEY" ]; then
+            echo "Missing required OIXCLOUD_SUBSCRIPTION_HMAC_KEY secret" >&2
+            exit 1
+          fi
       - name: Extract signing key
         run: |-
           mkdir -p $HOME/.gnupg
@@ -37,3 +46,4 @@ jobs:
           FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
           NFPM_KEY_PATH: ${{ env.HOME }}/.gnupg/sagernet.key
           NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          OIXCLOUD_SUBSCRIPTION_HMAC_KEY: ${{ secrets.OIXCLOUD_SUBSCRIPTION_HMAC_KEY }}

@@ -89,6 +89,14 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY_IMAGE }}
+      - name: Require oixCloud subscription signing key
+        env:
+          OIXCLOUD_SUBSCRIPTION_HMAC_KEY: ${{ secrets.OIXCLOUD_SUBSCRIPTION_HMAC_KEY }}
+        run: |
+          if [ -z "$OIXCLOUD_SUBSCRIPTION_HMAC_KEY" ]; then
+            echo "Missing required OIXCLOUD_SUBSCRIPTION_HMAC_KEY secret" >&2
+            exit 1
+          fi
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v6
@@ -97,6 +105,8 @@ jobs:
           context: .
           build-args: |
             BUILDKIT_CONTEXT_KEEP_GIT_DIR=1
+          secrets: |
+            oixcloud_hmac_key=${{ secrets.OIXCLOUD_SUBSCRIPTION_HMAC_KEY }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
       - name: Export digest

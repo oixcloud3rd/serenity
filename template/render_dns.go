@@ -9,7 +9,6 @@ import (
 	"github.com/sagernet/serenity/common/semver"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
-	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/json/badoption"
 	BM "github.com/sagernet/sing/common/metadata"
@@ -122,12 +121,12 @@ func parseDNSServerOptions(address string, detour string, addressResolver string
 
 func (t *Template) renderDNS(_ context.Context, metadata M.Metadata, options *option.Options) error {
 	var domainStrategy option.DomainStrategy
-	if t.DomainStrategy != option.DomainStrategy(dns.DomainStrategyAsIS) {
+	if t.DomainStrategy != option.DomainStrategy(C.DomainStrategyAsIS) {
 		domainStrategy = t.DomainStrategy
 	} else if t.EnableFakeIP {
-		domainStrategy = option.DomainStrategy(dns.DomainStrategyPreferIPv4)
+		domainStrategy = option.DomainStrategy(C.DomainStrategyPreferIPv4)
 	} else {
-		domainStrategy = option.DomainStrategy(dns.DomainStrategyUseIPv4)
+		domainStrategy = option.DomainStrategy(C.DomainStrategyIPv4Only)
 	}
 	dnsClientOptions := option.DNSClientOptions{
 		Strategy: domainStrategy,
@@ -345,7 +344,7 @@ func (t *Template) renderDNS(_ context.Context, metadata M.Metadata, options *op
 						Type: C.RuleTypeDefault,
 						DefaultOptions: option.DefaultDNSRule{
 							RawDefaultDNSRule: option.RawDefaultDNSRule{
-								MatchResponse: true,
+								MatchResponse: &option.DNSRuleMatchResponse{Enabled: true},
 								RuleSet:       []string{"geoip-cn"},
 							},
 							DNSRuleAction: option.DNSRuleAction{

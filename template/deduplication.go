@@ -29,9 +29,32 @@ func normalizeDeduplicationStrategy(strategy string) (string, error) {
 	}
 }
 
-type outboundRef struct {
+type proxyRef struct {
 	subIndex int
-	outbound boxOption.Outbound
+	outbound *boxOption.Outbound
+	endpoint *boxOption.Endpoint
+}
+
+func (r proxyRef) tag() string {
+	if r.outbound != nil {
+		return r.outbound.Tag
+	}
+	return r.endpoint.Tag
+}
+
+func (r *proxyRef) setTag(tag string) {
+	if r.outbound != nil {
+		r.outbound.Tag = tag
+	} else {
+		r.endpoint.Tag = tag
+	}
+}
+
+func (r proxyRef) server() string {
+	if r.outbound != nil {
+		return getOutboundServer(*r.outbound)
+	}
+	return getEndpointServer(*r.endpoint)
 }
 
 func deduplicateTemplateSubscriptions(subscriptions []*subscription.Subscription, strategy string) ([]*subscription.Subscription, error) {
@@ -43,12 +66,20 @@ func deduplicateTemplateSubscriptions(subscriptions []*subscription.Subscription
 		return subscriptions, nil
 	}
 
-	refs := make([]outboundRef, 0)
+	refs := make([]proxyRef, 0)
 	for subIndex, sub := range subscriptions {
 		for _, outbound := range sub.Servers {
-			refs = append(refs, outboundRef{
+			outboundCopy := outbound
+			refs = append(refs, proxyRef{
 				subIndex: subIndex,
-				outbound: outbound,
+				outbound: &outboundCopy,
+			})
+		}
+		for _, endpoint := range sub.Endpoints {
+			endpointCopy := endpoint
+			refs = append(refs, proxyRef{
+				subIndex: subIndex,
+				endpoint: &endpointCopy,
 			})
 		}
 	}
@@ -56,11 +87,11 @@ func deduplicateTemplateSubscriptions(subscriptions []*subscription.Subscription
 	if normalized == C.DeduplicationRename {
 		seen := make(map[string]int)
 		for i := range refs {
-			tag := refs[i].outbound.Tag
+			tag := refs[i].tag()
 			if count, exists := seen[tag]; exists {
 				count++
 				seen[tag] = count
-				refs[i].outbound.Tag = fmt.Sprintf("%s (%d)", tag, count)
+				refs[i].setTag(fmt.Sprintf("%s (%d)", tag, count))
 			} else {
 				seen[tag] = 0
 			}
@@ -68,7 +99,7 @@ func deduplicateTemplateSubscriptions(subscriptions []*subscription.Subscription
 	} else {
 		seen := make(map[string][]int)
 		for i, ref := range refs {
-			seen[ref.outbound.Tag] = append(seen[ref.outbound.Tag], i)
+			seen[ref.tag()] = append(seen[ref.tag()], i)
 		}
 
 		keep := make(map[int]bool)
@@ -89,7 +120,7 @@ func deduplicateTemplateSubscriptions(subscriptions []*subscription.Subscription
 				bestPriority := -1
 
 				for _, idx := range indices {
-					server := getOutboundServer(refs[idx].outbound)
+					server := refs[idx].server()
 					addressType := getAddressType(server)
 					priority := getAddressPriority(addressType, normalized)
 					if priority > bestPriority {
@@ -112,18 +143,41 @@ func deduplicateTemplateSubscriptions(subscriptions []*subscription.Subscription
 	}
 
 	perSubscription := make([][]boxOption.Outbound, len(subscriptions))
+	perSubscriptionEndpoints := make([][]boxOption.Endpoint, len(subscriptions))
 	for _, ref := range refs {
-		perSubscription[ref.subIndex] = append(perSubscription[ref.subIndex], ref.outbound)
+		if ref.outbound != nil {
+			perSubscription[ref.subIndex] = append(perSubscription[ref.subIndex], *ref.outbound)
+		} else {
+			perSubscriptionEndpoints[ref.subIndex] = append(perSubscriptionEndpoints[ref.subIndex], *ref.endpoint)
+		}
 	}
 
 	deduped := make([]*subscription.Subscription, len(subscriptions))
 	for i, sub := range subscriptions {
 		copied := *sub
 		copied.Servers = perSubscription[i]
+		copied.Endpoints = perSubscriptionEndpoints[i]
 		deduped[i] = &copied
 	}
 
 	return deduped, nil
+}
+
+func getEndpointServer(endpoint boxOption.Endpoint) string {
+	switch opts := endpoint.Options.(type) {
+	case *boxOption.WireGuardEndpointOptions:
+		if len(opts.Peers) > 0 {
+			return opts.Peers[0].Address
+		}
+	case *boxOption.OpenVPNClientEndpointOptions:
+		if opts.Server != "" {
+			return opts.Server
+		}
+		if len(opts.Servers) > 0 {
+			return opts.Servers[0].Server
+		}
+	}
+	return ""
 }
 
 func getOutboundServer(outbound boxOption.Outbound) string {
@@ -139,6 +193,16 @@ func getOutboundServer(outbound boxOption.Outbound) string {
 	case *boxOption.TrojanOutboundOptions:
 		return opts.Server
 	case *boxOption.Hysteria2OutboundOptions:
+		return opts.Server
+	case *boxOption.HysteriaOutboundOptions:
+		return opts.Server
+	case *boxOption.AnyTLSOutboundOptions:
+		return opts.Server
+	case *boxOption.SnellOutboundOptions:
+		return opts.Server
+	case *boxOption.SSHOutboundOptions:
+		return opts.Server
+	case *boxOption.TUICOutboundOptions:
 		return opts.Server
 	case *boxOption.SOCKSOutboundOptions:
 		return opts.Server

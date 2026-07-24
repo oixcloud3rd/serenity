@@ -23,11 +23,11 @@ func filterNullGroupReference(metadata M.Metadata, options *option.Options) erro
 		switch outboundOptions := outbound.Options.(type) {
 		case *option.SelectorOutboundOptions:
 			outboundOptions.Outbounds = common.Filter(outboundOptions.Outbounds, func(outbound string) bool {
-				return common.Contains(outboundTags, outbound)
+				return common.Contains(routingTargets, outbound)
 			})
 		case *option.URLTestOutboundOptions:
 			outboundOptions.Outbounds = common.Filter(outboundOptions.Outbounds, func(outbound string) bool {
-				return common.Contains(outboundTags, outbound)
+				return common.Contains(routingTargets, outbound)
 			})
 		default:
 			continue

@@ -12,6 +12,7 @@ import (
 
 type _Options struct {
 	RawMessage json.RawMessage           `json:"-"`
+	BasePath   string                    `json:"-"` // Base path for resolving relative paths
 	Log        *option.LogOptions        `json:"log,omitempty"`
 	Listen     string                    `json:"listen,omitempty"`
 	TLS        *option.InboundTLSOptions `json:"tls,omitempty"`
@@ -62,15 +63,25 @@ type Subscription struct {
 }
 
 type OutboundProcessOptions struct {
-	Filter           badoption.Listable[string]        `json:"filter,omitempty"`
-	Exclude          badoption.Listable[string]        `json:"exclude,omitempty"`
-	FilterType       badoption.Listable[string]        `json:"filter_type,omitempty"`
-	ExcludeType      badoption.Listable[string]        `json:"exclude_type,omitempty"`
-	Invert           bool                              `json:"invert,omitempty"`
-	Remove           bool                              `json:"remove,omitempty"`
-	Rename           *badjson.TypedMap[string, string] `json:"rename,omitempty"`
-	RemoveEmoji      bool                              `json:"remove_emoji,omitempty"`
-	RewriteMultiplex *option.OutboundMultiplexOptions  `json:"rewrite_multiplex,omitempty"`
+	Filter                badoption.Listable[string]        `json:"filter,omitempty"`
+	Exclude               badoption.Listable[string]        `json:"exclude,omitempty"`
+	FilterType            badoption.Listable[string]        `json:"filter_type,omitempty"`
+	ExcludeType           badoption.Listable[string]        `json:"exclude_type,omitempty"`
+	Invert                bool                              `json:"invert,omitempty"`
+	Remove                bool                              `json:"remove,omitempty"`
+	Rename                *badjson.TypedMap[string, string] `json:"rename,omitempty"`
+	RemoveEmoji           bool                              `json:"remove_emoji,omitempty"`
+	RewriteMultiplex      *option.OutboundMultiplexOptions  `json:"rewrite_multiplex,omitempty"`
+	RewriteDialerOptions  *option.DialerOptions             `json:"rewrite_dialer_options,omitempty"`
+	RewriteTLS            *option.OutboundTLSOptions        `json:"rewrite_tls,omitempty"`
+	RewriteVMessOptions   *option.VMessOutboundOptions      `json:"rewrite_vmess_options,omitempty"`
+	RewritePacketEncoding string                            `json:"rewrite_packet_encoding,omitempty"`
+	RewriteUTLS           *RewriteUTLSOptions               `json:"rewrite_utls,omitempty"`
+}
+
+type RewriteUTLSOptions struct {
+	Enabled     bool   `json:"enabled,omitempty"`
+	Fingerprint string `json:"fingerprint,omitempty"`
 }
 
 type Profile struct {

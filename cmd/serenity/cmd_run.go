@@ -106,7 +106,10 @@ func readConfigAndMerge() (option.Options, error) {
 		return option.Options{}, err
 	}
 	if len(optionsList) == 1 {
-		return optionsList[0].options, nil
+		options := optionsList[0].options
+		// Set BasePath to the directory containing the config file
+		options.BasePath = filepath.Dir(optionsList[0].path)
+		return options, nil
 	}
 	var mergedMessage json.RawMessage
 	for _, options := range optionsList {
@@ -119,6 +122,10 @@ func readConfigAndMerge() (option.Options, error) {
 	err = mergedOptions.UnmarshalJSONContext(globalCtx, mergedMessage)
 	if err != nil {
 		return option.Options{}, E.Cause(err, "unmarshal merged config")
+	}
+	// Set BasePath to the directory containing the first config file
+	if len(optionsList) > 0 {
+		mergedOptions.BasePath = filepath.Dir(optionsList[0].path)
 	}
 	return mergedOptions, nil
 }

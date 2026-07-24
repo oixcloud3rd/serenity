@@ -6,7 +6,7 @@ icon: material/file-code
 
 ## :material-graph: 要求
 
-* Go 1.23.x
+* Go 1.24.7 或更高版本
 
 您可以从 https://go.dev/doc/install 下载并安装 Go，推荐使用最新版本。
 

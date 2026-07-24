@@ -2,7 +2,6 @@ package template
 
 import (
 	M "github.com/sagernet/serenity/common/metadata"
-	"github.com/sagernet/serenity/common/semver"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	N "github.com/sagernet/sing/common/network"
@@ -12,15 +11,21 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 	if options.Route == nil {
 		options.Route = &option.RouteOptions{
 			Rules:   t.StartRules,
-			RuleSet: t.renderRuleSet(t.CustomRuleSet),
+			RuleSet: t.renderRuleSet(metadata, t.CustomRuleSet),
 		}
 	}
 	if !t.DisableTrafficBypass {
 		t.renderGeoResources(metadata, options)
 	}
-	disableRuleAction := t.DisableRuleAction || (metadata.Version != nil && metadata.Version.LessThan(semver.ParseVersion("1.11.0-alpha.7")))
-	if disableRuleAction {
-		options.Route.Rules = append(options.Route.Rules, option.Rule{
+	options.Route.Rules = append(options.Route.Rules, option.Rule{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultRule{
+			RuleAction: option.RuleAction{
+				Action: C.RuleActionTypeSniff,
+			},
+		},
+	},
+		option.Rule{
 			Type: C.RuleTypeLogical,
 			LogicalOptions: option.LogicalRule{
 				RawLogicalRule: option.RawLogicalRule{
@@ -45,52 +50,13 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 					},
 				},
 				RuleAction: option.RuleAction{
-					Action: C.RuleActionTypeRoute,
-					RouteOptions: option.RouteActionOptions{
-						Outbound: DNSTag,
-					},
+					Action: C.RuleActionTypeHijackDNS,
 				},
 			},
 		})
-	} else {
-		options.Route.Rules = append(options.Route.Rules, option.Rule{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultRule{
-				RuleAction: option.RuleAction{
-					Action: C.RuleActionTypeSniff,
-				},
-			},
-		},
-			option.Rule{
-				Type: C.RuleTypeLogical,
-				LogicalOptions: option.LogicalRule{
-					RawLogicalRule: option.RawLogicalRule{
-						Mode: C.LogicalTypeOr,
-						Rules: []option.Rule{
-							{
-								Type: C.RuleTypeDefault,
-								DefaultOptions: option.DefaultRule{
-									RawDefaultRule: option.RawDefaultRule{
-										Port: []uint16{53},
-									},
-								},
-							},
-							{
-								Type: C.RuleTypeDefault,
-								DefaultOptions: option.DefaultRule{
-									RawDefaultRule: option.RawDefaultRule{
-										Protocol: []string{C.ProtocolDNS},
-									},
-								},
-							},
-						},
-					},
-					RuleAction: option.RuleAction{
-						Action: C.RuleActionTypeHijackDNS,
-					},
-				},
-			})
-	}
+
+	options.Route.Rules = append(options.Route.Rules, t.BeforePrivateDirectRules...)
+
 	directTag := t.DirectTag
 	defaultTag := t.DefaultTag
 	if directTag == "" {
@@ -150,7 +116,7 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 			},
 		})
 	}
-	if !disableRuleAction {
+	if !t.DisableSystemProxy {
 		options.Route.Rules = append(options.Route.Rules, option.Rule{
 			Type: C.RuleTypeDefault,
 			DefaultOptions: option.DefaultRule{
@@ -244,10 +210,8 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 			},
 		})
 	}
-	if metadata.Version != nil && metadata.Version.GreaterThanOrEqual(semver.ParseVersion("1.12.0-alpha.1")) {
-		options.Route.DefaultDomainResolver = &option.DomainResolveOptions{
-			Server: DNSLocalTag,
-		}
+	options.Route.DefaultDomainResolver = &option.DomainResolveOptions{
+		Server: DNSLocalTag,
 	}
 	return nil
 }

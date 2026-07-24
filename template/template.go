@@ -5,7 +5,6 @@ import (
 	"regexp"
 
 	M "github.com/sagernet/serenity/common/metadata"
-	"github.com/sagernet/serenity/common/semver"
 	"github.com/sagernet/serenity/option"
 	"github.com/sagernet/serenity/subscription"
 	"github.com/sagernet/serenity/template/filter"
@@ -14,18 +13,18 @@ import (
 )
 
 const (
-	DefaultMixedPort  = 8080
-	DNSDefaultTag     = "default"
-	DNSLocalTag       = "local"
-	DNSLocalSetupTag  = "local_setup"
-	DNSFakeIPTag      = "remote"
-	DefaultDNS        = "tls://8.8.8.8"
-	DefaultDNSLocal   = "https://223.5.5.5/dns-query"
-	DefaultDefaultTag = "default"
-	DefaultDirectTag  = "direct"
-	DefaultBlockTag   = "block"
-	DNSTag            = "dns"
-	DefaultURLTestTag = "URLTest"
+	DefaultMixedPort     = 8080
+	DNSDefaultTag        = "default"
+	DNSLocalTag          = "local"
+	DNSLocalSetupTag     = "local_setup"
+	DNSFakeIPTag         = "fakeip"
+	DefaultDNS           = "tls://8.8.8.8"
+	DefaultDNSLocal      = "https://223.5.5.5/dns-query"
+	DefaultDefaultTag    = "default"
+	DefaultDirectTag     = "direct"
+	DefaultHTTPClientTag = "default"
+	DefaultBlockTag      = "block"
+	DefaultURLTestTag    = "URLTest"
 )
 
 var Default = new(Template)
@@ -44,9 +43,7 @@ type ExtraGroup struct {
 func (t *Template) Render(ctx context.Context, metadata M.Metadata, profileName string, endpoints []boxOption.Endpoint, outbounds [][]boxOption.Outbound, subscriptions []*subscription.Subscription) (*boxOption.Options, error) {
 	var options boxOption.Options
 	options.Log = t.Log
-	if metadata.Version != nil && metadata.Version.GreaterThanOrEqual(semver.ParseVersion("1.12.0-alpha.1")) {
-		options.Endpoints = endpoints
-	}
+	options.Endpoints = endpoints
 	err := t.renderDNS(ctx, metadata, &options)
 	if err != nil {
 		return nil, E.Cause(err, "render dns")
@@ -54,6 +51,10 @@ func (t *Template) Render(ctx context.Context, metadata M.Metadata, profileName 
 	err = t.renderRoute(metadata, &options)
 	if err != nil {
 		return nil, E.Cause(err, "render route")
+	}
+	err = t.renderEndpoints(metadata, &options)
+	if err != nil {
+		return nil, E.Cause(err, "render endpoints")
 	}
 	err = t.renderInbounds(metadata, &options)
 	if err != nil {

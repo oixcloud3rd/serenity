@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/task"
 )
@@ -78,7 +79,7 @@ func resolveDestination(ctx *resolveContext, server option.Outbound) netip.AddrP
 	if serverOptions.IsIP() {
 		return serverOptions.AddrPort()
 	}
-	if serverOptions.IsFqdn() {
+	if M.IsDomainName(serverOptions.Fqdn) {
 		addresses, lookupErr := ctx.dnsClient.Lookup(ctx.ctx, ctx.dnsTransport, serverOptions.Fqdn, dns.QueryOptions{
 			Strategy: dns.DomainStrategyPreferIPv4,
 		})

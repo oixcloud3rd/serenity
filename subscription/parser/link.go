@@ -14,8 +14,12 @@ func ParseSubscriptionLink(link string) (option.Outbound, error) {
 	}
 	scheme := link[:schemeIndex]
 	switch scheme {
+	case "anytls":
+		return ParseAnyTLSLink(link)
 	case "ss":
 		return ParseShadowsocksLink(link)
+	case "vmess":
+		return ParseVmessLink(link)
 	default:
 		return option.Outbound{}, E.New("unsupported scheme: ", scheme)
 	}

@@ -36,7 +36,11 @@ func (c *Subscription) MarshalBinary(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = varbin.Write(&buffer, binary.BigEndian, c.LastEtag)
+	_, err = varbin.WriteUvarint(&buffer, uint64(len(c.LastEtag)))
+	if err != nil {
+		return nil, err
+	}
+	_, err = buffer.WriteString(c.LastEtag)
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +73,15 @@ func (c *Subscription) UnmarshalBinary(ctx context.Context, data []byte) error {
 		return err
 	}
 	c.LastUpdated = time.Unix(lastUpdatedUnix, 0)
-	err = varbin.Read(reader, binary.BigEndian, &c.LastEtag)
+	etagLength, err := binary.ReadUvarint(reader)
 	if err != nil {
 		return err
 	}
+	etag := make([]byte, etagLength)
+	_, err = reader.Read(etag)
+	if err != nil {
+		return err
+	}
+	c.LastEtag = string(etag)
 	return nil
 }

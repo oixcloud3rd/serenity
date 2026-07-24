@@ -8,6 +8,7 @@
   // Global
 
   "log": {},
+  "http_clients": [],
   "domain_strategy": "",
   "domain_strategy_local": "",
   "disable_traffic_bypass": false,
@@ -24,6 +25,8 @@
   "pre_dns_rules": [],
   "custom_dns_rules": [],
   "custom_fakeip": {},
+  "fakeip_rewrite_ttl": null,
+  "inherit_fakeip_rewrite_ttl": false,
   
   // Inbound
 
@@ -51,12 +54,15 @@
   "direct_tag": "",
   "default_tag": "",
   "urltest_tag": "",
+  "urltest_url": "",
+  "deduplication_strategy": "",
   "custom_direct": {},
   "custom_selector": {},
   "custom_urltest": {},
   
   // Route
 
+  "default_http_client": "",
   "pre_rules": [],
   "custom_rules": [],
   "enable_jsdelivr": false,
@@ -96,6 +102,12 @@ Extend from another profile.
 #### log
 
 Log configuration, see [Log](https://sing-box.sagernet.org/configuration/log/).
+
+#### http_clients
+
+List of [HTTP Client](https://sing-box.sagernet.org/configuration/shared/http-client/) options.
+
+For sing-box 1.14.0 and later, a default HTTP client will be generated for remote rule-set downloads if this field is empty.
 
 #### domain_strategy
 
@@ -169,6 +181,18 @@ No default traffic bypassing DNS rules will be generated if not empty.
 #### custom_fakeip
 
 Custom [FakeIP](https://sing-box.sagernet.org/configuration/dns/fakeip/) template.
+
+#### fakeip_rewrite_ttl
+
+Rewrite TTL for generated FakeIP DNS rules.
+
+Not set by default.
+
+#### inherit_fakeip_rewrite_ttl
+
+Apply `fakeip_rewrite_ttl` to top-level custom DNS rules that route directly to the generated FakeIP server.
+
+Existing `rewrite_ttl` values are not overwritten.
 
 #### inbounds
 
@@ -254,6 +278,26 @@ Custom default outbound tag.
 
 Custom URLTest outbound tag.
 
+#### urltest_url
+
+Default URL for URLTest outbounds.
+
+Only URLTest outbounds without `url` set will use this value.
+
+#### deduplication_strategy
+
+Strategy for handling duplicate outbound tags across subscriptions within this template.
+
+Available values:
+
+- `rename` (default): Keep all outbounds, append suffix like `node (1)`, `node (2)`.
+- `first`: Keep the first occurrence, discard duplicates.
+- `last`: Keep the last occurrence, discard duplicates.
+- `prefer_ipv4`: Prefer IPv4 > Domain > IPv6.
+- `prefer_ipv6`: Prefer IPv6 > Domain > IPv4.
+- `prefer_domain_then_ipv4`: Prefer Domain > IPv4 > IPv6.
+- `prefer_domain_then_ipv6`: Prefer Domain > IPv6 > IPv4.
+
 #### custom_direct
 
 Custom [Direct](https://sing-box.sagernet.org/configuration/outbound/direct/) outbound template.
@@ -281,6 +325,12 @@ No default traffic bypassing rules will be generated if not empty.
 #### enable_jsdelivr
 
 Use jsDelivr CDN and direct outbound for default rule sets or Geo resources.
+
+#### default_http_client
+
+Default [HTTP Client](https://sing-box.sagernet.org/configuration/shared/http-client/) tag used by remote rule-sets.
+
+Only generated for sing-box 1.14.0 and later.
 
 #### custom_geoip
 

@@ -84,7 +84,8 @@ func New(ctx context.Context, options option.Options) (*Server, error) {
 		ctx,
 		logFactory.NewLogger("subscription"),
 		cacheFile,
-		options.Subscriptions)
+		options.Subscriptions,
+		options.BasePath)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +158,7 @@ func (s *Server) Start() error {
 		if err != nil {
 			return err
 		}
-		stdConfig, err := s.tlsConfig.Config()
+		stdConfig, err := s.tlsConfig.STDConfig()
 		if err != nil {
 			return err
 		}

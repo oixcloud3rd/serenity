@@ -130,6 +130,87 @@ func (o *ProcessOptions) Process(outbounds []boxOption.Outbound) []boxOption.Out
 				outboundOptions.Multiplex = o.RewriteMultiplex
 			}
 		}
+
+		if o.RewriteDialerOptions != nil {
+			if dialerOptionsWrapper, containsDialerOptions := outbound.Options.(boxOption.DialerOptionsWrapper); containsDialerOptions {
+				dialerOptionsWrapper.ReplaceDialerOptions(*o.RewriteDialerOptions)
+			}
+		}
+		if o.RewriteTLS != nil {
+			if tlsOptionsWrapper, containsTLSOptions := outbound.Options.(boxOption.OutboundTLSOptionsWrapper); containsTLSOptions {
+				tlsOptionsWrapper.ReplaceOutboundTLSOptions(o.RewriteTLS)
+			}
+		}
+		if o.RewriteVMessOptions != nil {
+			if outboundOptions, ok := outbound.Options.(*boxOption.VMessOutboundOptions); ok {
+				if o.RewriteVMessOptions.Security != "" {
+					outboundOptions.Security = o.RewriteVMessOptions.Security
+				}
+			}
+		}
+
+		if o.RewritePacketEncoding != "" {
+			switch outboundOptions := outbound.Options.(type) {
+			case *boxOption.VMessOutboundOptions:
+				outboundOptions.PacketEncoding = o.RewritePacketEncoding
+			case *boxOption.VLESSOutboundOptions:
+				outboundOptions.PacketEncoding = &o.RewritePacketEncoding
+			}
+		}
+
+		if o.RewriteUTLS != nil {
+			switch outboundOptions := outbound.Options.(type) {
+			case *boxOption.VMessOutboundOptions:
+				if outboundOptions.TLS == nil {
+					outboundOptions.TLS = &boxOption.OutboundTLSOptions{}
+				}
+				if o.RewriteUTLS.Enabled {
+					outboundOptions.TLS.UTLS = &boxOption.OutboundUTLSOptions{
+						Enabled:     true,
+						Fingerprint: o.RewriteUTLS.Fingerprint,
+					}
+				} else if outboundOptions.TLS.UTLS != nil {
+					outboundOptions.TLS.UTLS = nil
+				}
+			case *boxOption.VLESSOutboundOptions:
+				if outboundOptions.TLS == nil {
+					outboundOptions.TLS = &boxOption.OutboundTLSOptions{}
+				}
+				if o.RewriteUTLS.Enabled {
+					outboundOptions.TLS.UTLS = &boxOption.OutboundUTLSOptions{
+						Enabled:     true,
+						Fingerprint: o.RewriteUTLS.Fingerprint,
+					}
+				} else if outboundOptions.TLS.UTLS != nil {
+					outboundOptions.TLS.UTLS = nil
+				}
+			case *boxOption.TrojanOutboundOptions:
+				if outboundOptions.TLS == nil {
+					outboundOptions.TLS = &boxOption.OutboundTLSOptions{}
+				}
+				if o.RewriteUTLS.Enabled {
+					outboundOptions.TLS.UTLS = &boxOption.OutboundUTLSOptions{
+						Enabled:     true,
+						Fingerprint: o.RewriteUTLS.Fingerprint,
+					}
+				} else if outboundOptions.TLS.UTLS != nil {
+					outboundOptions.TLS.UTLS = nil
+				}
+			case *boxOption.AnyTLSOutboundOptions:
+				if outboundOptions.TLS == nil {
+					outboundOptions.TLS = &boxOption.OutboundTLSOptions{}
+				}
+				if o.RewriteUTLS.Enabled {
+					outboundOptions.TLS.UTLS = &boxOption.OutboundUTLSOptions{
+						Enabled:     true,
+						Fingerprint: o.RewriteUTLS.Fingerprint,
+					}
+				} else if outboundOptions.TLS.UTLS != nil {
+					outboundOptions.TLS.UTLS = nil
+				}
+			}
+		}
+
 		newOutbounds = append(newOutbounds, outbound)
 	}
 	if len(renameResult) > 0 {

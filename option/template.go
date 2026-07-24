@@ -5,7 +5,7 @@ import (
 
 	C "github.com/sagernet/serenity/constant"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-dns"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common/byteformats"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
@@ -21,6 +21,7 @@ type _Template struct {
 	// Global
 
 	Log                  *option.LogOptions    `json:"log,omitempty"`
+	HTTPClients          []option.HTTPClient   `json:"http_clients,omitempty"`
 	DomainStrategy       option.DomainStrategy `json:"domain_strategy,omitempty"`
 	DomainStrategyLocal  option.DomainStrategy `json:"domain_strategy_local,omitempty"`
 	DisableTrafficBypass bool                  `json:"disable_traffic_bypass,omitempty"`
@@ -29,14 +30,22 @@ type _Template struct {
 	RemoteResolve        bool                  `json:"remote_resolve,omitempty"`
 
 	// DNS
-	DNSServers     []option.DNSServerOptions      `json:"dns_servers,omitempty"`
-	DNS            string                         `json:"dns,omitempty"`
-	DNSLocal       string                         `json:"dns_local,omitempty"`
-	EnableFakeIP   bool                           `json:"enable_fakeip,omitempty"`
-	DisableDNSLeak bool                           `json:"disable_dns_leak,omitempty"`
-	PreDNSRules    []option.DNSRule               `json:"pre_dns_rules,omitempty"`
-	CustomDNSRules []option.DNSRule               `json:"custom_dns_rules,omitempty"`
-	CustomFakeIP   *option.FakeIPDNSServerOptions `json:"custom_fakeip,omitempty"`
+	DNSServers               []option.DNSServerOptions      `json:"dns_servers,omitempty"`
+	DNS                      string                         `json:"dns,omitempty"`
+	DNSLocal                 string                         `json:"dns_local,omitempty"`
+	EnableFakeIP             bool                           `json:"enable_fakeip,omitempty"`
+	EnableLocalSetup         bool                           `json:"enable_local_setup,omitempty"`
+	DisableDNSLeak           bool                           `json:"disable_dns_leak,omitempty"`
+	EnableOptimisticDNSCache bool                           `json:"enable_optimistic_dns_cache,omitempty"`
+	StartDNSRules            []option.DNSRule               `json:"start_dns_rules,omitempty"`
+	PreDNSRules              []option.DNSRule               `json:"pre_dns_rules,omitempty"`
+	CustomDNSRules           []option.DNSRule               `json:"custom_dns_rules,omitempty"`
+	CustomFakeIP             *option.FakeIPDNSServerOptions `json:"custom_fakeip,omitempty"`
+	FakeIPRewriteTTL         *uint32                        `json:"fakeip_rewrite_ttl,omitempty"`
+	InheritFakeIPRewriteTTL  bool                           `json:"inherit_fakeip_rewrite_ttl,omitempty"`
+
+	// Endpoint
+	Endpoints []option.Endpoint `json:"endpoints,omitempty"`
 
 	// Inbound
 	Inbounds           []option.Inbound                              `json:"inbounds,omitempty"`
@@ -47,23 +56,27 @@ type _Template struct {
 	CustomMixed        *TypedMessage[option.HTTPMixedInboundOptions] `json:"custom_mixed,omitempty"`
 
 	// Outbound
-	ExtraGroups    []ExtraGroup                    `json:"extra_groups,omitempty"`
-	DirectTag      string                          `json:"direct_tag,omitempty"`
-	BlockTag       string                          `json:"block_tag,omitempty"`
-	DefaultTag     string                          `json:"default_tag,omitempty"`
-	URLTestTag     string                          `json:"urltest_tag,omitempty"`
-	CustomDirect   *option.DirectOutboundOptions   `json:"custom_direct,omitempty"`
-	CustomSelector *option.SelectorOutboundOptions `json:"custom_selector,omitempty"`
-	CustomURLTest  *option.URLTestOutboundOptions  `json:"custom_urltest,omitempty"`
+	ExtraGroups           []ExtraGroup                    `json:"extra_groups,omitempty"`
+	DirectTag             string                          `json:"direct_tag,omitempty"`
+	BlockTag              string                          `json:"block_tag,omitempty"`
+	DefaultTag            string                          `json:"default_tag,omitempty"`
+	URLTestTag            string                          `json:"urltest_tag,omitempty"`
+	URLTestURL            string                          `json:"urltest_url,omitempty"`
+	DeduplicationStrategy string                          `json:"deduplication_strategy,omitempty"`
+	CustomDirect          *option.DirectOutboundOptions   `json:"custom_direct,omitempty"`
+	CustomSelector        *option.SelectorOutboundOptions `json:"custom_selector,omitempty"`
+	CustomURLTest         *option.URLTestOutboundOptions  `json:"custom_urltest,omitempty"`
 
 	// Route
-	DisableDefaultRules bool          `json:"disable_default_rules,omitempty"`
-	StartRules          []option.Rule `json:"start_rules,omitempty"`
-	PreRules            []option.Rule `json:"pre_rules,omitempty"`
-	CustomRules         []option.Rule `json:"custom_rules,omitempty"`
-	EnableJSDelivr      bool          `json:"enable_jsdelivr,omitempty"`
-	CustomRuleSet       []RuleSet     `json:"custom_rule_set,omitempty"`
-	PostRuleSet         []RuleSet     `json:"post_rule_set,omitempty"`
+	DisableDefaultRules      bool          `json:"disable_default_rules,omitempty"`
+	DefaultHTTPClient        string        `json:"default_http_client,omitempty"`
+	StartRules               []option.Rule `json:"start_rules,omitempty"`
+	BeforePrivateDirectRules []option.Rule `json:"before_private_direct_rules,omitempty"`
+	PreRules                 []option.Rule `json:"pre_rules,omitempty"`
+	CustomRules              []option.Rule `json:"custom_rules,omitempty"`
+	EnableJSDelivr           bool          `json:"enable_jsdelivr,omitempty"`
+	CustomRuleSet            []RuleSet     `json:"custom_rule_set,omitempty"`
+	PostRuleSet              []RuleSet     `json:"post_rule_set,omitempty"`
 
 	//  Experimental
 	DisableCacheFile          bool `json:"disable_cache_file,omitempty"`

@@ -66,6 +66,11 @@ func NewManager(ctx context.Context, logger logger.Logger, rawTemplates []option
 			}
 			template = newTemplate
 		}
+		normalizedStrategy, err := normalizeDeduplicationStrategy(template.DeduplicationStrategy)
+		if err != nil {
+			return nil, E.Cause(err, "initialize template[", template.Name, "]: deduplication_strategy")
+		}
+		template.DeduplicationStrategy = normalizedStrategy
 		var groups []*ExtraGroup
 		for groupIndex, group := range template.ExtraGroups {
 			if group.Tag == "" {

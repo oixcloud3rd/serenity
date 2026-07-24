@@ -7,7 +7,6 @@ import (
 	"text/template"
 
 	M "github.com/sagernet/serenity/common/metadata"
-	"github.com/sagernet/serenity/common/semver"
 	"github.com/sagernet/serenity/option"
 	"github.com/sagernet/serenity/subscription"
 	C "github.com/sagernet/sing-box/constant"
@@ -18,7 +17,6 @@ import (
 )
 
 func (t *Template) renderOutbounds(metadata M.Metadata, options *boxOption.Options, outbounds [][]boxOption.Outbound, subscriptions []*subscription.Subscription) error {
-	disableRuleAction := t.DisableRuleAction || (metadata.Version != nil && metadata.Version.LessThan(semver.ParseVersion("1.11.0-alpha.7")))
 	defaultTag := t.DefaultTag
 	if defaultTag == "" {
 		defaultTag = DefaultDefaultTag
@@ -27,10 +25,6 @@ func (t *Template) renderOutbounds(metadata M.Metadata, options *boxOption.Optio
 	directTag := t.DirectTag
 	if directTag == "" {
 		directTag = DefaultDirectTag
-	}
-	blockTag := t.BlockTag
-	if blockTag == "" {
-		blockTag = DefaultBlockTag
 	}
 	options.Outbounds = []boxOption.Outbound{
 		{
@@ -44,24 +38,15 @@ func (t *Template) renderOutbounds(metadata M.Metadata, options *boxOption.Optio
 			Options: common.Ptr(common.PtrValueOrDefault(t.CustomSelector)),
 		},
 	}
-	if disableRuleAction {
-		options.Outbounds = append(options.Outbounds,
-			boxOption.Outbound{
-				Tag:     blockTag,
-				Type:    C.TypeBlock,
-				Options: &boxOption.StubOptions{},
-			},
-			boxOption.Outbound{
-				Tag:     DNSTag,
-				Type:    C.TypeDNS,
-				Options: &boxOption.StubOptions{},
-			},
-		)
-	}
 	urlTestTag := t.URLTestTag
 	if urlTestTag == "" {
 		urlTestTag = DefaultURLTestTag
 	}
+	dedupedSubscriptions, err := deduplicateTemplateSubscriptions(subscriptions, t.DeduplicationStrategy)
+	if err != nil {
+		return err
+	}
+	subscriptions = dedupedSubscriptions
 	outboundToString := func(it boxOption.Outbound) string {
 		return it.Tag
 	}
@@ -273,7 +258,26 @@ func (t *Template) renderOutbounds(metadata M.Metadata, options *boxOption.Optio
 	options.Outbounds = groupJoin(options.Outbounds, defaultTag, false, groupTags...)
 	options.Outbounds = groupJoin(options.Outbounds, defaultTag, false, globalOutboundTags...)
 	options.Outbounds = append(options.Outbounds, allGroupOutbounds...)
+	applyDefaultURLTestURL(options.Outbounds, t.URLTestURL)
 	return nil
+}
+
+func applyDefaultURLTestURL(outbounds []boxOption.Outbound, defaultURL string) {
+	if defaultURL == "" {
+		return
+	}
+	for i, outbound := range outbounds {
+		if outbound.Type != C.TypeURLTest {
+			continue
+		}
+		urltestOptions, isURLTest := outbound.Options.(*boxOption.URLTestOutboundOptions)
+		if !isURLTest || urltestOptions.URL != "" {
+			continue
+		}
+		urltestOptions.URL = defaultURL
+		outbound.Options = urltestOptions
+		outbounds[i] = outbound
+	}
 }
 
 func groupJoin(outbounds []boxOption.Outbound, groupTag string, appendFront bool, groupOutbounds ...string) []boxOption.Outbound {

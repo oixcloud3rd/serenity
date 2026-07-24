@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/sagernet/serenity/common/metadata"
 	M "github.com/sagernet/serenity/common/metadata"
 	"github.com/sagernet/serenity/option"
 	boxOption "github.com/sagernet/sing-box/option"
@@ -34,9 +33,7 @@ func (s *Server) render(writer http.ResponseWriter, request *http.Request) {
 		// compatibility with legacy versions
 		profileName = request.URL.Query().Get("profile")
 	}
-	if strings.HasSuffix(profileName, "/") {
-		profileName = profileName[:len(profileName)-1]
-	}
+	profileName = strings.TrimSuffix(profileName, "/")
 	var profile *Profile
 	if len(s.users) == 0 {
 		if profileName == "" {
@@ -93,13 +90,14 @@ func (s *Server) render(writer http.ResponseWriter, request *http.Request) {
 		s.accessLog(request, http.StatusInternalServerError, len(err.Error()))
 		return
 	}
+
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	writer.Write(buffer.Bytes())
 	s.accessLog(request, http.StatusOK, buffer.Len())
 }
 
-func (s *Server) RenderHeadless(profileName string, metadata metadata.Metadata) (*boxOption.Options, error) {
+func (s *Server) RenderHeadless(profileName string, metadata M.Metadata) (*boxOption.Options, error) {
 	var profile *Profile
 	if profileName == "" {
 		s.profile.DefaultProfile()

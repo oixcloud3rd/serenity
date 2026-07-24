@@ -4,6 +4,9 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/sagernet/serenity/common/cachefile"
@@ -25,6 +28,7 @@ type Manager struct {
 	updateInterval time.Duration
 	updateTicker   *time.Ticker
 	httpClient     http.Client
+	basePath       string
 }
 
 type Subscription struct {
@@ -36,7 +40,7 @@ type Subscription struct {
 	LastEtag    string
 }
 
-func NewSubscriptionManager(ctx context.Context, logger logger.Logger, cacheFile *cachefile.CacheFile, rawSubscriptions []option.Subscription) (*Manager, error) {
+func NewSubscriptionManager(ctx context.Context, logger logger.Logger, cacheFile *cachefile.CacheFile, rawSubscriptions []option.Subscription, basePath string) (*Manager, error) {
 	var (
 		subscriptions []*Subscription
 		interval      time.Duration
@@ -72,6 +76,7 @@ func NewSubscriptionManager(ctx context.Context, logger logger.Logger, cacheFile
 		cacheFile:      cacheFile,
 		subscriptions:  subscriptions,
 		updateInterval: interval,
+		basePath:       basePath,
 	}, nil
 }
 
@@ -149,6 +154,11 @@ func (m *Manager) updateAll() {
 }
 
 func (m *Manager) update(subscription *Subscription) error {
+	// Check if URL is a local file path
+	if isLocalFile(subscription.URL) {
+		return m.updateFromFile(subscription)
+	}
+
 	request, err := http.NewRequest("GET", subscription.URL, nil)
 	if err != nil {
 		return err
@@ -187,12 +197,11 @@ func (m *Manager) update(subscription *Subscription) error {
 		response.Body.Close()
 		return err
 	}
+	response.Body.Close()
 	rawServers, err := parser.ParseSubscription(m.ctx, string(content))
 	if err != nil {
-		response.Body.Close()
 		return err
 	}
-	response.Body.Close()
 	subscription.rawServers = rawServers
 	m.processSubscription(subscription, true)
 	eTagHeader := response.Header.Get("Etag")
@@ -209,5 +218,52 @@ func (m *Manager) update(subscription *Subscription) error {
 		return err
 	}
 	m.logger.Info("updated subscription ", subscription.Name, ": ", len(subscription.rawServers), " servers")
+	return nil
+}
+
+// isLocalFile checks if the URL is a local file path
+func isLocalFile(url string) bool {
+	return strings.HasPrefix(url, "file://") ||
+		(!strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://"))
+}
+
+// updateFromFile updates subscription from a local file
+func (m *Manager) updateFromFile(subscription *Subscription) error {
+	filePath := subscription.URL
+	// Remove file:// prefix if present
+	filePath = strings.TrimPrefix(filePath, "file://")
+
+	// If it's a relative path, resolve it relative to the config file directory
+	if !filepath.IsAbs(filePath) && m.basePath != "" {
+		filePath = filepath.Join(m.basePath, filePath)
+	}
+
+	// Read file content
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return E.Cause(err, "read file")
+	}
+
+	// Parse subscription content
+	rawServers, err := parser.ParseSubscription(m.ctx, string(content))
+	if err != nil {
+		return E.Cause(err, "parse subscription")
+	}
+
+	subscription.rawServers = rawServers
+	m.processSubscription(subscription, true)
+	subscription.LastUpdated = time.Now()
+
+	// Store to cache
+	err = m.cacheFile.StoreSubscription(m.ctx, subscription.Name, &cachefile.Subscription{
+		Content:     subscription.rawServers,
+		LastUpdated: subscription.LastUpdated,
+		LastEtag:    "",
+	})
+	if err != nil {
+		return err
+	}
+
+	m.logger.Info("updated subscription ", subscription.Name, " from file: ", len(subscription.rawServers), " servers")
 	return nil
 }

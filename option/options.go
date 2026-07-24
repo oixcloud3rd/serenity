@@ -64,6 +64,7 @@ type Subscription struct {
 
 type OutboundProcessOptions struct {
 	Filter                badoption.Listable[string]        `json:"filter,omitempty"`
+	FilterServer          badoption.Listable[string]        `json:"filter_server,omitempty"`
 	Exclude               badoption.Listable[string]        `json:"exclude,omitempty"`
 	FilterType            badoption.Listable[string]        `json:"filter_type,omitempty"`
 	ExcludeType           badoption.Listable[string]        `json:"exclude_type,omitempty"`

@@ -12,9 +12,10 @@ import (
 
 type ProcessOptions struct {
 	option.OutboundProcessOptions
-	filter  []*regexp.Regexp
-	exclude []*regexp.Regexp
-	rename  []*Rename
+	filter       []*regexp.Regexp
+	filterServer []*regexp.Regexp
+	exclude      []*regexp.Regexp
+	rename       []*Rename
 }
 
 type Rename struct {
@@ -24,9 +25,10 @@ type Rename struct {
 
 func NewProcessOptions(options option.OutboundProcessOptions) (*ProcessOptions, error) {
 	var (
-		filter  []*regexp.Regexp
-		exclude []*regexp.Regexp
-		rename  []*Rename
+		filter       []*regexp.Regexp
+		filterServer []*regexp.Regexp
+		exclude      []*regexp.Regexp
+		rename       []*Rename
 	)
 	for regexIndex, it := range options.Filter {
 		regex, err := regexp.Compile(it)
@@ -34,6 +36,13 @@ func NewProcessOptions(options option.OutboundProcessOptions) (*ProcessOptions, 
 			return nil, E.Cause(err, "parse filter[", regexIndex, "]")
 		}
 		filter = append(filter, regex)
+	}
+	for regexIndex, it := range options.FilterServer {
+		regex, err := regexp.Compile(it)
+		if err != nil {
+			return nil, E.Cause(err, "parse filter_server[", regexIndex, "]")
+		}
+		filterServer = append(filterServer, regex)
 	}
 	for regexIndex, it := range options.Exclude {
 		regex, err := regexp.Compile(it)
@@ -57,6 +66,7 @@ func NewProcessOptions(options option.OutboundProcessOptions) (*ProcessOptions, 
 	return &ProcessOptions{
 		OutboundProcessOptions: options,
 		filter:                 filter,
+		filterServer:           filterServer,
 		exclude:                exclude,
 		rename:                 rename,
 	}, nil
@@ -66,35 +76,7 @@ func (o *ProcessOptions) Process(outbounds []boxOption.Outbound) []boxOption.Out
 	newOutbounds := make([]boxOption.Outbound, 0, len(outbounds))
 	renameResult := make(map[string]string)
 	for _, outbound := range outbounds {
-		var inProcess bool
-		if len(o.filter) == 0 && len(o.FilterType) == 0 && len(o.exclude) == 0 && len(o.ExcludeType) == 0 {
-			inProcess = true
-		} else {
-			if len(o.filter) > 0 {
-				if common.Any(o.filter, func(it *regexp.Regexp) bool {
-					return it.MatchString(outbound.Tag)
-				}) {
-					inProcess = true
-				}
-			}
-			if !inProcess && len(o.FilterType) > 0 {
-				if common.Contains(o.FilterType, outbound.Type) {
-					inProcess = true
-				}
-			}
-			if !inProcess && len(o.exclude) > 0 {
-				if !common.Any(o.exclude, func(it *regexp.Regexp) bool {
-					return it.MatchString(outbound.Tag)
-				}) {
-					inProcess = true
-				}
-			}
-			if !inProcess && len(o.ExcludeType) > 0 {
-				if !common.Contains(o.ExcludeType, outbound.Type) {
-					inProcess = true
-				}
-			}
-		}
+		inProcess := o.matches(outbound.Tag, outbound.Type, serverOf(outbound.Options))
 		if o.Invert {
 			inProcess = !inProcess
 		}
@@ -237,7 +219,7 @@ func (o *ProcessOptions) ProcessEndpoints(endpoints []boxOption.Endpoint) []boxO
 	newEndpoints := make([]boxOption.Endpoint, 0, len(endpoints))
 	renameResult := make(map[string]string)
 	for _, endpoint := range endpoints {
-		inProcess := o.matches(endpoint.Tag, endpoint.Type)
+		inProcess := o.matches(endpoint.Tag, endpoint.Type, serverOf(endpoint.Options))
 		if o.Invert {
 			inProcess = !inProcess
 		}
@@ -281,8 +263,8 @@ func (o *ProcessOptions) RenameMap(outbounds []boxOption.Outbound, endpoints []b
 		return nil
 	}
 	result := make(map[string]string)
-	apply := func(tag string, itemType string) {
-		matched := o.matches(tag, itemType)
+	apply := func(tag string, itemType string, server string) {
+		matched := o.matches(tag, itemType, server)
 		if o.Invert {
 			matched = !matched
 		}
@@ -302,10 +284,10 @@ func (o *ProcessOptions) RenameMap(outbounds []boxOption.Outbound, endpoints []b
 		}
 	}
 	for _, outbound := range outbounds {
-		apply(outbound.Tag, outbound.Type)
+		apply(outbound.Tag, outbound.Type, serverOf(outbound.Options))
 	}
 	for _, endpoint := range endpoints {
-		apply(endpoint.Tag, endpoint.Type)
+		apply(endpoint.Tag, endpoint.Type, serverOf(endpoint.Options))
 	}
 	return result
 }
@@ -334,11 +316,14 @@ func rewriteRenamedDetour(wrapper boxOption.DialerOptionsWrapper, renameMap map[
 	}
 }
 
-func (o *ProcessOptions) matches(tag string, itemType string) bool {
-	if len(o.filter) == 0 && len(o.FilterType) == 0 && len(o.exclude) == 0 && len(o.ExcludeType) == 0 {
+func (o *ProcessOptions) matches(tag string, itemType string, server string) bool {
+	if len(o.filter) == 0 && len(o.filterServer) == 0 && len(o.FilterType) == 0 && len(o.exclude) == 0 && len(o.ExcludeType) == 0 {
 		return true
 	}
 	if len(o.filter) > 0 && common.Any(o.filter, func(it *regexp.Regexp) bool { return it.MatchString(tag) }) {
+		return true
+	}
+	if server != "" && len(o.filterServer) > 0 && common.Any(o.filterServer, func(it *regexp.Regexp) bool { return it.MatchString(server) }) {
 		return true
 	}
 	if len(o.FilterType) > 0 && common.Contains(o.FilterType, itemType) {
@@ -348,6 +333,14 @@ func (o *ProcessOptions) matches(tag string, itemType string) bool {
 		return true
 	}
 	return len(o.ExcludeType) > 0 && !common.Contains(o.ExcludeType, itemType)
+}
+
+func serverOf(options any) string {
+	serverOptions, ok := options.(boxOption.ServerOptionsWrapper)
+	if !ok {
+		return ""
+	}
+	return serverOptions.TakeServerOptions().Server
 }
 
 func removeEmojis(s string) string {

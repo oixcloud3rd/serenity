@@ -8,6 +8,7 @@
   "process": [
     {
       "filter": [],
+      "filter_server": [],
       "exclude": [],
       "filter_type": [],
       "exclude_type": [],
@@ -97,6 +98,12 @@ Process rules for filtering and renaming subscription outbounds and endpoints, a
 Regexp filter rules, match outbound or endpoint tag name.
 
 Only outbounds matching these patterns will be processed.
+
+#### process.filter_server
+
+Regexp filter rules, match the `server` field (node address) of an outbound or endpoint.
+
+Only nodes with a matching server address will be processed. Nodes without a `server` field do not match this filter.
 
 #### process.exclude
 

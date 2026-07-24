@@ -1,0 +1,14 @@
+-s dir
+--name serenity
+--category net
+--license GPL-3.0-or-later
+--description "The configuration generator for sing-box."
+--url "https://github.com/oixcloud3rd/serenity"
+--vendor SagerNet
+--maintainer "oixCloud3rd <oixcloud3rd@akinokaede.com>"
+--config-files /etc/serenity/config.json
+
+release/config/config.json=/etc/serenity/config.json
+release/config/serenity.service=/usr/lib/systemd/system/serenity.service
+release/config/serenity@.service=/usr/lib/systemd/system/serenity@.service
+LICENSE=/usr/share/licenses/serenity/LICENSE

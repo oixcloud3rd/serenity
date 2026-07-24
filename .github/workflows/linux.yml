@@ -6,44 +6,190 @@ on:
       - published
 
 jobs:
-  build:
+  prepare:
+    name: Prepare release
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Validate required secrets
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          OIXCLOUD_SUBSCRIPTION_HMAC_KEY: ${{ secrets.OIXCLOUD_SUBSCRIPTION_HMAC_KEY }}
+        run: |
+          set -euo pipefail
+          for name in GPG_KEY GPG_PASSPHRASE OIXCLOUD_SUBSCRIPTION_HMAC_KEY; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing required ${name} secret" >&2
+              exit 1
+            fi
+          done
+      - name: Calculate version
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [[ -z "$version" ]]; then
+            echo "Unable to determine version from release tag" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.asset_arch }} artifacts
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { asset_arch: "386", goarch: "386", debian: i386, rpm: i386, pacman: i686 }
+          - { asset_arch: amd64, goarch: amd64, goamd64: v1, debian: amd64, rpm: x86_64, pacman: x86_64 }
+          - { asset_arch: arm64, goarch: arm64, debian: arm64, rpm: aarch64, pacman: aarch64 }
+          - { asset_arch: armv7, goarch: arm, goarm: "7", debian: armhf, rpm: armv7hl, pacman: armv7h }
+          - { asset_arch: s390x, goarch: s390x, debian: s390x, rpm: s390x }
+          - { asset_arch: riscv64, goarch: riscv64, debian: riscv64, rpm: riscv64 }
+          - { asset_arch: mips64le_hardfloat, goarch: mips64le, debian: mips64el, rpm: mips64el }
+    env:
+      GPG_KEY: ${{ secrets.GPG_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      OIXCLOUD_SUBSCRIPTION_HMAC_KEY: ${{ secrets.OIXCLOUD_SUBSCRIPTION_HMAC_KEY }}
     steps:
       - name: Checkout
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: ^1.26
-
-      - name: Require oixCloud subscription signing key
-        env:
-          OIXCLOUD_SUBSCRIPTION_HMAC_KEY: ${{ secrets.OIXCLOUD_SUBSCRIPTION_HMAC_KEY }}
+      - name: Set package version
         run: |
-          if [ -z "$OIXCLOUD_SUBSCRIPTION_HMAC_KEY" ]; then
-            echo "Missing required OIXCLOUD_SUBSCRIPTION_HMAC_KEY secret" >&2
+          package_version="${{ needs.prepare.outputs.version }}"
+          echo "PKG_VERSION=${package_version//-/\~}" >> "$GITHUB_ENV"
+      - name: Build binary
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: ${{ matrix.goarch }}
+          GOAMD64: ${{ matrix.goamd64 }}
+          GOARM: ${{ matrix.goarm }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          go build -v -trimpath -o dist/serenity \
+            -ldflags "-X 'github.com/sagernet/serenity/constant.Version=${{ needs.prepare.outputs.version }}' -X 'github.com/sagernet/serenity/constant.OIXCloudSubscriptionHMACKey=${OIXCLOUD_SUBSCRIPTION_HMAC_KEY}' -s -w -buildid=" \
+            ./cmd/serenity
+          TZ=UTC touch -t '197001010000' dist/serenity
+      - name: Package binary archive
+        run: |
+          set -euo pipefail
+          archive_name="serenity-${{ needs.prepare.outputs.version }}-linux-${{ matrix.asset_arch }}"
+          mkdir "dist/${archive_name}"
+          cp dist/serenity LICENSE "dist/${archive_name}/"
+          tar -czf "dist/${archive_name}.tar.gz" -C dist "$archive_name"
+          rm -rf "dist/${archive_name}"
+      - name: Install packaging tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y debsigs libarchive-tools rpm zstd
+          sudo gem install fpm --no-document
+          cp .fpm_systemd .fpm
+      - name: Import package signing key
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/.gnupg"
+          mkdir -m 700 "$HOME/.gnupg"
+          printf '%s\n' "$GPG_KEY" | gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --import
+          gpg_key_id="$(gpg --batch --with-colons --list-secret-keys | awk -F: '$1 == "fpr" { print $10; exit }')"
+          if [[ -z "$gpg_key_id" ]]; then
+            echo "Unable to determine imported GPG key fingerprint" >&2
             exit 1
           fi
-      - name: Extract signing key
-        run: |-
-          mkdir -p $HOME/.gnupg
-          cat > $HOME/.gnupg/sagernet.key <<EOF
-          ${{ secrets.GPG_KEY }}
-          echo "HOME=$HOME" >> "$GITHUB_ENV"
+          echo "GPG_KEY_ID=$gpg_key_id" >> "$GITHUB_ENV"
+      - name: Package DEB
+        run: |
+          set -euo pipefail
+          fpm -t deb \
+            -v "$PKG_VERSION" \
+            -p "dist/serenity_${{ needs.prepare.outputs.version }}_linux_${{ matrix.asset_arch }}.deb" \
+            --architecture "${{ matrix.debian }}" \
+            dist/serenity=/usr/bin/serenity
+          sudo patch --forward --batch /usr/bin/debsigs < .github/patches/debsigs-gpgopts.patch
+          debsigs --sign=origin -k "$GPG_KEY_ID" \
+            --gpgopts "--batch --pinentry-mode loopback --passphrase $GPG_PASSPHRASE" \
+            dist/*.deb
+      - name: Package RPM
+        run: |
+          set -euo pipefail
+          fpm -t rpm \
+            -v "$PKG_VERSION" \
+            -p "dist/serenity_${{ needs.prepare.outputs.version }}_linux_${{ matrix.asset_arch }}.rpm" \
+            --architecture "${{ matrix.rpm }}" \
+            dist/serenity=/usr/bin/serenity
+          cat > "$HOME/.rpmmacros" <<EOF
+          %_gpg_name $GPG_KEY_ID
+          %_gpg_sign_cmd_extra_args --batch --pinentry-mode loopback --passphrase $GPG_PASSPHRASE
           EOF
-          echo "HOME=$HOME" >> "$GITHUB_ENV"
-      - name: Publish release
-        uses: goreleaser/goreleaser-action@v5
+          chmod 600 "$HOME/.rpmmacros"
+          rpmsign --addsign dist/*.rpm
+      - name: Package Arch Linux
+        if: matrix.pacman != ''
+        run: |
+          set -euo pipefail
+          cp .fpm_pacman .fpm
+          fpm -t pacman \
+            -v "$PKG_VERSION" \
+            -p "dist/serenity_${{ needs.prepare.outputs.version }}_linux_${{ matrix.asset_arch }}.pkg.tar.zst" \
+            --architecture "${{ matrix.pacman }}" \
+            dist/serenity=/usr/bin/serenity
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          distribution: goreleaser-pro
-          version: latest
-          args: release -f .goreleaser.fury.yaml --clean
+          name: artifacts-linux-${{ matrix.asset_arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.rpm
+            dist/*.pkg.tar.zst
+          if-no-files-found: error
+
+  upload:
+    name: Publish artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs:
+      - build
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Upload release assets
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          assets=(dist/*.tar.gz dist/*.deb dist/*.rpm dist/*.pkg.tar.zst)
+          if (( ${#assets[@]} == 0 )); then
+            echo "No release assets were downloaded" >&2
+            exit 1
+          fi
+          gh release upload "$GITHUB_REF_NAME" "${assets[@]}" \
+            --clobber \
+            --repo "$GITHUB_REPOSITORY"
+      - name: Upload packages to Fury
+        env:
           FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
-          NFPM_KEY_PATH: ${{ env.HOME }}/.gnupg/sagernet.key
-          NFPM_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          OIXCLOUD_SUBSCRIPTION_HMAC_KEY: ${{ secrets.OIXCLOUD_SUBSCRIPTION_HMAC_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$FURY_TOKEN" ]]; then
+            echo "Missing required FURY_TOKEN secret" >&2
+            exit 1
+          fi
+          ls dist/*.deb dist/*.rpm | xargs -I {} curl -F "package=@{}" "https://${FURY_TOKEN}@push.fury.io/oixcloud3rd/"

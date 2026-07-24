@@ -4,7 +4,7 @@ COPY . /go/src/github.com/sagernet/serenity
 WORKDIR /go/src/github.com/sagernet/serenity
 ARG TARGETOS TARGETARCH
 ARG GOPROXY=""
-ENV GOPROXY ${GOPROXY}
+ENV GOPROXY=${GOPROXY}
 ENV CGO_ENABLED=0
 ENV GOOS=$TARGETOS
 ENV GOARCH=$TARGETARCH
@@ -18,7 +18,7 @@ RUN --mount=type=secret,id=oixcloud_hmac_key \
         -o /go/bin/serenity \
         -ldflags "-X github.com/sagernet/serenity/constant.Version=$VERSION -X github.com/sagernet/serenity/constant.OIXCloudSubscriptionHMACKey=$OIXCLOUD_HMAC_KEY -s -w -buildid=" \
         ./cmd/serenity
-FROM --platform=$TARGETPLATFORM alpine AS dist
+FROM alpine AS dist
 LABEL maintainer="nekohasekai <contact-git@sekai.icu>"
 RUN set -ex \
     && apk upgrade \

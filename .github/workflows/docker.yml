@@ -12,6 +12,10 @@ on:
 env:
   REGISTRY_IMAGE: ghcr.io/oixcloud3rd/serenity
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   prepare:
     runs-on: ubuntu-latest

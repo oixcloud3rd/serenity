@@ -441,12 +441,17 @@ func clashTLSOptions(enabled bool, serverName string, insecure bool, alpn []stri
 		echOptions := &option.OutboundECHOptions{Enabled: true, QueryServerName: ech.QueryServerName}
 		if ech.Config != "" {
 			if configBytes, err := base64.StdEncoding.DecodeString(ech.Config); err == nil {
-				echOptions.Config = []string{string(pem.EncodeToMemory(&pem.Block{Type: "ECH CONFIGS", Bytes: configBytes}))}
+				echOptions.Config = encodeECHConfig(configBytes)
 			}
 		}
 		tlsOptions.ECH = echOptions
 	}
 	return tlsOptions
+}
+
+func encodeECHConfig(configBytes []byte) []string {
+	content := strings.TrimSpace(string(pem.EncodeToMemory(&pem.Block{Type: "ECH CONFIGS", Bytes: configBytes})))
+	return strings.Split(content, "\n")
 }
 
 func optionalString(value string) *string {
@@ -560,7 +565,7 @@ func applySnellObfs(target *option.SnellOutboundOptions, source *clash_outbound.
 		Enabled:    true,
 		ServerName: serverName,
 		Insecure:   mapBool(source.ObfsOpts, "skip-cert-verify") || mapBool(source.ObfsOpts, "insecure"),
-		ECH:        &option.OutboundECHOptions{Enabled: true, Config: []string{string(pem.EncodeToMemory(&pem.Block{Type: "ECH CONFIGS", Bytes: configBytes}))}},
+		ECH:        &option.OutboundECHOptions{Enabled: true, Config: encodeECHConfig(configBytes)},
 		UTLS:       &option.OutboundUTLSOptions{Enabled: true, Fingerprint: fingerprint},
 	}
 	headers := make(map[string]badoption.Listable[string])

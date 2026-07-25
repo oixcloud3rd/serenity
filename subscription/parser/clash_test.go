@@ -130,8 +130,11 @@ func TestParseClashSnellECHTLS(t *testing.T) {
 	if !ok || options.TLS == nil || options.TLS.ECH == nil || options.Transport == nil {
 		t.Fatalf("missing Snell ECH-TLS conversion: %#v", result.Outbounds[0].Options)
 	}
-	if len(options.TLS.ECH.Config) != 1 || !strings.Contains(options.TLS.ECH.Config[0], "BEGIN ECH CONFIGS") {
-		t.Fatalf("ECH config was not converted to PEM: %#v", options.TLS.ECH.Config)
+	if len(options.TLS.ECH.Config) < 3 || options.TLS.ECH.Config[0] != "-----BEGIN ECH CONFIGS-----" || options.TLS.ECH.Config[len(options.TLS.ECH.Config)-1] != "-----END ECH CONFIGS-----" {
+		t.Fatalf("ECH config was not converted to PEM lines: %#v", options.TLS.ECH.Config)
+	}
+	if strings.Contains(strings.Join(options.TLS.ECH.Config, ""), "\n") {
+		t.Fatalf("ECH config lines should not contain embedded newlines: %#v", options.TLS.ECH.Config)
 	}
 	if options.Transport.Type != C.V2RayTransportTypeWebsocket || options.Transport.WebsocketOptions.Path != "/snell" {
 		t.Fatalf("unexpected Snell ECH-TLS transport: %#v", options.Transport)

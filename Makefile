@@ -3,6 +3,12 @@ COMMIT = $(shell git rev-parse --short HEAD)
 TAG = $(shell git describe --tags --always)
 VERSION = $(TAG:v%=%)
 
+OIXCLOUD_SUBSCRIPTION_HMAC_KEY_FROM_ENV := $(OIXCLOUD_SUBSCRIPTION_HMAC_KEY)
+-include .env
+ifneq ($(strip $(OIXCLOUD_SUBSCRIPTION_HMAC_KEY_FROM_ENV)),)
+OIXCLOUD_SUBSCRIPTION_HMAC_KEY := $(OIXCLOUD_SUBSCRIPTION_HMAC_KEY_FROM_ENV)
+endif
+
 PARAMS = -v -trimpath -ldflags "-X 'github.com/sagernet/serenity/constant.Version=$(VERSION)' -X 'github.com/sagernet/serenity/constant.OIXCloudSubscriptionHMACKey=$(OIXCLOUD_SUBSCRIPTION_HMAC_KEY)' -s -w -buildid="
 MAIN_PARAMS = $(PARAMS)
 MAIN = ./cmd/serenity

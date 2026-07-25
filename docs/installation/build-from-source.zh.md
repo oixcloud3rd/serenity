@@ -22,6 +22,8 @@ make
 OIXCLOUD_SUBSCRIPTION_HMAC_KEY='your-key' make build
 ```
 
+也可以复制 `.env.example` 为 `.env`，并在其中设置 `OIXCLOUD_SUBSCRIPTION_HMAC_KEY`。当外部环境没有提供该变量时，`make` 和 `make build` 会自动加载 `.env`。
+
 本地构建可不提供密钥；此时 HTTP、文件等其他订阅来源不受影响，仅在使用 `oixcloud://` 时返回明确错误。官方 Docker 镜像与发布软件包必须配置同名仓库 Secret。Docker 通过 BuildKit secret 传入密钥，不会将其写入构建参数或镜像层：
 
 ```bash

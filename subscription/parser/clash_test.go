@@ -105,7 +105,15 @@ func TestParseClashSnellECHTLS(t *testing.T) {
 	if echBlock == nil {
 		t.Fatal("generated ECH config is not PEM")
 	}
-	content := fmt.Sprintf(`proxies:
+	for _, testCase := range []struct {
+		name       string
+		legacyPath string
+	}{
+		{name: "without WebSocket path"},
+		{name: "ignores legacy WebSocket path", legacyPath: "      path: /snell\n"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			content := fmt.Sprintf(`proxies:
   - name: snell-ech
     type: snell
     server: 127.0.0.1
@@ -117,29 +125,37 @@ func TestParseClashSnellECHTLS(t *testing.T) {
       mode: ech-tls
       host: public.example.com
       sni: public.example.com
-      path: /snell
-      ech-config: %s
+%s      ech-config: %s
       skip-cert-verify: true
       client-fingerprint: chrome
-`, base64.StdEncoding.EncodeToString(echBlock.Bytes))
-	result, err := ParseClashSubscription(context.Background(), content)
-	if err != nil || len(result.Outbounds) != 1 {
-		t.Fatalf("parse Snell ECH-TLS: result=%#v err=%v", result, err)
+`, testCase.legacyPath, base64.StdEncoding.EncodeToString(echBlock.Bytes))
+			result, err := ParseClashSubscription(context.Background(), content)
+			if err != nil || len(result.Outbounds) != 1 {
+				t.Fatalf("parse Snell ECH-TLS: result=%#v err=%v", result, err)
+			}
+			options, ok := result.Outbounds[0].Options.(*option.SnellOutboundOptions)
+			if !ok || options.TLS == nil || options.TLS.ECH == nil {
+				t.Fatalf("missing Snell ECH-TLS conversion: %#v", result.Outbounds[0].Options)
+			}
+			if len(options.TLS.ECH.Config) < 3 || options.TLS.ECH.Config[0] != "-----BEGIN ECH CONFIGS-----" || options.TLS.ECH.Config[len(options.TLS.ECH.Config)-1] != "-----END ECH CONFIGS-----" {
+				t.Fatalf("ECH config was not converted to PEM lines: %#v", options.TLS.ECH.Config)
+			}
+			if strings.Contains(strings.Join(options.TLS.ECH.Config, ""), "\n") {
+				t.Fatalf("ECH config lines should not contain embedded newlines: %#v", options.TLS.ECH.Config)
+			}
+			if len(options.TLS.ALPN) != 1 || options.TLS.ALPN[0] != snellECHTLSALPN {
+				t.Fatalf("unexpected Snell ECH-TLS ALPN: %#v", options.TLS.ALPN)
+			}
+			encoded, err := json.MarshalContext(include.Context(context.Background()), &result.Outbounds[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(encoded), `"transport"`) {
+				t.Fatalf("Snell raw ECH-TLS should not use a transport: %s", encoded)
+			}
+			assertTargetOptionsRoundTrip(t, result)
+		})
 	}
-	options, ok := result.Outbounds[0].Options.(*option.SnellOutboundOptions)
-	if !ok || options.TLS == nil || options.TLS.ECH == nil || options.Transport == nil {
-		t.Fatalf("missing Snell ECH-TLS conversion: %#v", result.Outbounds[0].Options)
-	}
-	if len(options.TLS.ECH.Config) < 3 || options.TLS.ECH.Config[0] != "-----BEGIN ECH CONFIGS-----" || options.TLS.ECH.Config[len(options.TLS.ECH.Config)-1] != "-----END ECH CONFIGS-----" {
-		t.Fatalf("ECH config was not converted to PEM lines: %#v", options.TLS.ECH.Config)
-	}
-	if strings.Contains(strings.Join(options.TLS.ECH.Config, ""), "\n") {
-		t.Fatalf("ECH config lines should not contain embedded newlines: %#v", options.TLS.ECH.Config)
-	}
-	if options.Transport.Type != C.V2RayTransportTypeWebsocket || options.Transport.WebsocketOptions.Path != "/snell" {
-		t.Fatalf("unexpected Snell ECH-TLS transport: %#v", options.Transport)
-	}
-	assertTargetOptionsRoundTrip(t, result)
 }
 
 func assertTargetOptionsRoundTrip(t *testing.T, result Result) {

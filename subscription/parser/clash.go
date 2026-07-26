@@ -407,11 +407,13 @@ func ParseClashSubscription(_ context.Context, content string) (Result, error) {
 
 func clashDialerOptions(basic clash_outbound.BasicOption) option.DialerOptions {
 	return option.DialerOptions{
-		Detour:        basic.DialerProxy,
-		BindInterface: basic.Interface,
-		RoutingMark:   option.FwMark(basic.RoutingMark),
-		TCPFastOpen:   basic.TFO,
-		TCPMultiPath:  basic.MPTCP,
+		Detour: basic.DialerProxy,
+		AbstractDialerOptions: option.AbstractDialerOptions{
+			BindInterface: basic.Interface,
+			RoutingMark:   option.FwMark(basic.RoutingMark),
+			TCPFastOpen:   basic.TFO,
+			TCPMultiPath:  basic.MPTCP,
+		},
 	}
 }
 
@@ -523,6 +525,8 @@ func speedMbps(value string) int {
 	return int(clash_utils.StringToBps(value) / 125000)
 }
 
+const snellECHTLSALPN = "h2"
+
 func applySnellObfs(target *option.SnellOutboundOptions, source *clash_outbound.SnellOption) error {
 	mode := mapString(source.ObfsOpts, "mode")
 	if fingerprint := mapString(source.ObfsOpts, "fingerprint"); fingerprint != "" {
@@ -564,25 +568,10 @@ func applySnellObfs(target *option.SnellOutboundOptions, source *clash_outbound.
 	target.TLS = &option.OutboundTLSOptions{
 		Enabled:    true,
 		ServerName: serverName,
+		ALPN:       []string{snellECHTLSALPN},
 		Insecure:   mapBool(source.ObfsOpts, "skip-cert-verify") || mapBool(source.ObfsOpts, "insecure"),
 		ECH:        &option.OutboundECHOptions{Enabled: true, Config: encodeECHConfig(configBytes)},
 		UTLS:       &option.OutboundUTLSOptions{Enabled: true, Fingerprint: fingerprint},
-	}
-	headers := make(map[string]badoption.Listable[string])
-	if rawHeaders, ok := source.ObfsOpts["headers"].(map[string]any); ok {
-		for key, value := range rawHeaders {
-			headers[key] = []string{format.ToString(value)}
-		}
-	}
-	if host := mapString(source.ObfsOpts, "host"); host != "" {
-		headers["Host"] = []string{host}
-	}
-	target.Transport = &option.V2RayTransportOptions{
-		Type:             C.V2RayTransportTypeWebsocket,
-		WebsocketOptions: option.V2RayWebsocketOptions{Path: mapString(source.ObfsOpts, "path"), Headers: headers},
-	}
-	if target.Transport.WebsocketOptions.Path == "" {
-		return E.New("Snell ECH-TLS requires a WebSocket path")
 	}
 	return nil
 }

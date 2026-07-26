@@ -272,8 +272,10 @@ func customDNSRouteRule(server string, rewriteTTL *uint32) boxOption.DNSRule {
 			DNSRuleAction: boxOption.DNSRuleAction{
 				Action: C.RuleActionTypeRoute,
 				RouteOptions: boxOption.DNSRouteActionOptions{
-					Server:     server,
-					RewriteTTL: rewriteTTL,
+					Server: server,
+					AbstractDNSRouteActionOptions: boxOption.AbstractDNSRouteActionOptions{
+						RewriteTTL: rewriteTTL,
+					},
 				},
 			},
 		},

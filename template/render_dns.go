@@ -446,8 +446,10 @@ func (t *Template) fakeIPDNSRule(configure func(rule *option.RawDefaultDNSRule))
 			DNSRuleAction: option.DNSRuleAction{
 				Action: C.RuleActionTypeRoute,
 				RouteOptions: option.DNSRouteActionOptions{
-					Server:     DNSFakeIPTag,
-					RewriteTTL: t.FakeIPRewriteTTL,
+					Server: DNSFakeIPTag,
+					AbstractDNSRouteActionOptions: option.AbstractDNSRouteActionOptions{
+						RewriteTTL: t.FakeIPRewriteTTL,
+					},
 				},
 			},
 		},

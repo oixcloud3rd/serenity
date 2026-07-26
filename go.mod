@@ -19,7 +19,7 @@ require (
 
 replace github.com/metacubex/mihomo => github.com/pickrui/Clash.Meta v0.0.0-20260723102942-055fc0ce358a
 
-replace github.com/sagernet/sing-box => github.com/oixcloud3rd/sing-box v1.14.0-beta.1
+replace github.com/sagernet/sing-box => github.com/oixcloud3rd/sing-box v1.14.0-beta.2.0.20260726195932-34ab75197fec
 
 replace github.com/sagernet/sing-snell => github.com/oixcloud3rd/sing-snell v0.0.0-20260724130459-8c230479c67c
 
@@ -209,7 +209,7 @@ require (
 	github.com/sagernet/sing-shadowsocks2 v0.2.1 // indirect
 	github.com/sagernet/sing-shadowtls v0.2.1 // indirect
 	github.com/sagernet/sing-snell v0.0.0-20260719094200-c43fbee0e839 // indirect
-	github.com/sagernet/sing-tun v0.8.12-0.20260722035624-8cededca4cc1 // indirect
+	github.com/sagernet/sing-tun v0.8.12-0.20260724023008-68aa7bdc2819 // indirect
 	github.com/sagernet/sing-usbip v0.0.0-20260616101517-efb91521eddb // indirect
 	github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1 // indirect
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1 // indirect

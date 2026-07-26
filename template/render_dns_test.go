@@ -67,6 +67,9 @@ func TestRenderDNSFakeIPRulesWithDefaultRules(t *testing.T) {
 			foreignRuleIndex = index
 		}
 		if rule.DefaultOptions.Action == C.RuleActionTypeEvaluate {
+			if rule.DefaultOptions.EvaluateOptions.Server != DNSLocalTag {
+				t.Fatalf("expected evaluate DNS rule server %q, got %q", DNSLocalTag, rule.DefaultOptions.EvaluateOptions.Server)
+			}
 			evaluateRuleIndex = index
 		}
 		if rule.DefaultOptions.MatchResponse.IsEnabled() {

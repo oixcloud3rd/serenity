@@ -335,7 +335,7 @@ func (t *Template) renderDNS(_ context.Context, metadata M.Metadata, options *op
 						DefaultOptions: option.DefaultDNSRule{
 							DNSRuleAction: option.DNSRuleAction{
 								Action: C.RuleActionTypeEvaluate,
-								RouteOptions: option.DNSRouteActionOptions{
+								EvaluateOptions: option.DNSEvaluateActionOptions{
 									Server: DNSLocalTag,
 								},
 							},

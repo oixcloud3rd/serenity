@@ -19,9 +19,9 @@ require (
 
 replace github.com/metacubex/mihomo => github.com/pickrui/Clash.Meta v0.0.0-20260723102942-055fc0ce358a
 
-replace github.com/sagernet/sing-box => github.com/oixcloud3rd/sing-box v1.14.0-beta.7.0.20260806052923-8f50cbb2b0e0
+replace github.com/sagernet/sing-box => github.com/oixcloud3rd/sing-box v1.14.0-beta.7.0.20260806063250-eb0148500451
 
-replace github.com/sagernet/sing-snell => github.com/oixcloud3rd/sing-snell v0.0.0-20260806050542-54ec3d09fd26
+replace github.com/sagernet/sing-snell => github.com/oixcloud3rd/sing-snell v0.0.0-20260806061941-924f2fe9981d
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect

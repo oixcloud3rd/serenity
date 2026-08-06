@@ -355,7 +355,8 @@ func ParseClashSubscription(_ context.Context, content string) (Result, error) {
 				},
 			}
 			if clashOption.Identity {
-				snellOptions.Identity = 1
+				identityVersion := 1
+				snellOptions.Identity = &identityVersion
 			}
 			if err == nil {
 				err = applySnellObfs(snellOptions, clashOption)
@@ -624,7 +625,7 @@ func applySnellObfs(target *option.SnellOutboundOptions, source *clash_outbound.
 		ECH:        &option.OutboundECHOptions{Enabled: true, Config: encodeECHConfig(configBytes)},
 		UTLS:       &option.OutboundUTLSOptions{Enabled: true, Fingerprint: fingerprint},
 	}
-	target.Identity = identityVersion
+	target.Identity = &identityVersion
 	target.Preconnect = sourceOptions.Preconnect
 	return nil
 }

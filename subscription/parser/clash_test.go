@@ -140,8 +140,8 @@ func TestParseClashSnellECHTLS(t *testing.T) {
 			if len(options.TLS.ALPN) != 1 || options.TLS.ALPN[0] != snellECHTLSALPN {
 				t.Fatalf("unexpected Snell ECH-TLS ALPN: %#v", options.TLS.ALPN)
 			}
-			if options.Identity != 2 || options.Preconnect != 2 || !options.Reuse {
-				t.Fatalf("unexpected Snell ECH-TLS options: identity=%d preconnect=%d reuse=%v", options.Identity, options.Preconnect, options.Reuse)
+			if options.Identity == nil || *options.Identity != 2 || options.Preconnect != 2 || !options.Reuse {
+				t.Fatalf("unexpected Snell ECH-TLS options: identity=%v preconnect=%d reuse=%v", options.Identity, options.Preconnect, options.Reuse)
 			}
 			encoded, err := json.MarshalContext(include.Context(context.Background()), &result.Outbounds[0])
 			if err != nil {
@@ -184,8 +184,8 @@ func TestParseClashSnellECHTLSFields(t *testing.T) {
 				t.Fatalf("parse Snell ECH-TLS fields: result=%#v err=%v", result, err)
 			}
 			options := result.Outbounds[0].Options.(*option.SnellOutboundOptions)
-			if options.Identity != testCase.wantIdentity {
-				t.Fatalf("identity=%d, want %d", options.Identity, testCase.wantIdentity)
+			if options.Identity == nil || *options.Identity != testCase.wantIdentity {
+				t.Fatalf("identity=%v, want %d", options.Identity, testCase.wantIdentity)
 			}
 			if len(options.TLS.ALPN) != 1 || options.TLS.ALPN[0] != snellECHTLSALPN {
 				t.Fatalf("legacy fallback must keep only the current ALPN: %#v", options.TLS.ALPN)
@@ -247,8 +247,8 @@ func TestParseClashSnellIdentityV1(t *testing.T) {
 		t.Fatalf("parse Snell identity: result=%#v err=%v", result, err)
 	}
 	options := result.Outbounds[0].Options.(*option.SnellOutboundOptions)
-	if options.Identity != 1 {
-		t.Fatalf("identity=%d, want 1", options.Identity)
+	if options.Identity == nil || *options.Identity != 1 {
+		t.Fatalf("identity=%v, want 1", options.Identity)
 	}
 	assertTargetOptionsRoundTrip(t, result)
 }

@@ -348,8 +348,14 @@ func ParseClashSubscription(_ context.Context, content string) (Result, error) {
 				err = E.New("Snell ShadowTLS is not supported by target sing-box")
 			}
 			snellOptions := &option.SnellOutboundOptions{
-				DialerOptions: clashDialerOptions(clashOption.BasicOption), ServerOptions: option.ServerOptions{Server: clashOption.Server, ServerPort: uint16(clashOption.Port)},
-				Version: clashOption.Version, PSK: clashOption.Psk, Identity: clashOption.Identity, Reuse: clashOption.Reuse != nil && *clashOption.Reuse, Network: clashNetworks(clashOption.UDP),
+				Version: clashOption.Version,
+				AbstractSnellOutboundOptions: option.AbstractSnellOutboundOptions{
+					DialerOptions: clashDialerOptions(clashOption.BasicOption), ServerOptions: option.ServerOptions{Server: clashOption.Server, ServerPort: uint16(clashOption.Port)},
+					PSK: clashOption.Psk, Reuse: clashOption.Reuse != nil && *clashOption.Reuse, Network: clashNetworks(clashOption.UDP),
+				},
+			}
+			if clashOption.Identity {
+				snellOptions.Identity = 1
 			}
 			if err == nil {
 				err = applySnellObfs(snellOptions, clashOption)
@@ -525,40 +531,86 @@ func speedMbps(value string) int {
 	return int(clash_utils.StringToBps(value) / 125000)
 }
 
-const snellECHTLSALPN = "h2"
+const (
+	snellECHTLSALPN         = "snell-ech/1"
+	snellECHTLSPreviousALPN = "oix-snell/1"
+)
+
+type snellObfsOptions struct {
+	Mode              string `obfs:"mode,omitempty"`
+	ALPN              string `obfs:"alpn,omitempty"`
+	Protocol          string `obfs:"protocol,omitempty"`
+	IdentityVersion   int    `obfs:"identity-version,omitempty"`
+	LegacyFallback    bool   `obfs:"legacy-fallback,omitempty"`
+	Preconnect        int    `obfs:"preconnect,omitempty"`
+	Host              string `obfs:"host,omitempty"`
+	SNI               string `obfs:"sni,omitempty"`
+	ECHConfig         string `obfs:"ech-config,omitempty"`
+	Insecure          bool   `obfs:"insecure,omitempty"`
+	Fingerprint       string `obfs:"fingerprint,omitempty"`
+	ClientFingerprint string `obfs:"client-fingerprint,omitempty"`
+	SkipCertVerify    bool   `obfs:"skip-cert-verify,omitempty"`
+}
 
 func applySnellObfs(target *option.SnellOutboundOptions, source *clash_outbound.SnellOption) error {
-	mode := mapString(source.ObfsOpts, "mode")
-	if fingerprint := mapString(source.ObfsOpts, "fingerprint"); fingerprint != "" {
-		return validateClashCertificateFingerprint(fingerprint)
+	var sourceOptions snellObfsOptions
+	decoder := structure.NewDecoder(structure.Option{TagName: "obfs", WeaklyTypedInput: true})
+	if err := decoder.Decode(source.ObfsOpts, &sourceOptions); err != nil {
+		return E.Cause(err, "decode Snell obfs options")
 	}
-	if mode == "" {
+	if sourceOptions.Fingerprint != "" {
+		return validateClashCertificateFingerprint(sourceOptions.Fingerprint)
+	}
+	if sourceOptions.Mode == "" {
 		return nil
 	}
-	if mode != "ech-tls" {
-		target.ObfsOptions.ObfsMode = mode
-		target.ObfsOptions.ObfsHost = mapString(source.ObfsOpts, "host")
+	if sourceOptions.Mode != "ech-tls" {
+		target.ObfsOptions.ObfsMode = sourceOptions.Mode
+		target.ObfsOptions.ObfsHost = sourceOptions.Host
 		return nil
 	}
 	if source.Version != 4 {
 		return E.New("Snell ECH-TLS requires version 4")
 	}
-	serverName := mapString(source.ObfsOpts, "sni")
+	if sourceOptions.Insecure || sourceOptions.SkipCertVerify {
+		return E.New("Snell ", snellECHTLSALPN, " requires certificate verification")
+	}
+	alpn, err := resolveSnellECHTLSALPN(sourceOptions.ALPN, sourceOptions.Protocol)
+	if err != nil {
+		return err
+	}
+	identityVersion := sourceOptions.IdentityVersion
+	if identityVersion == 0 {
+		identityVersion = 2
+	}
+	if identityVersion != 1 && identityVersion != 2 {
+		return E.New("unsupported Snell ECH-TLS identity version: ", identityVersion)
+	}
+	if sourceOptions.LegacyFallback {
+		identityVersion = 2
+	}
+	if sourceOptions.Preconnect < 0 || sourceOptions.Preconnect > 4 {
+		return E.New("Snell ECH-TLS preconnect must be between 0 and 4")
+	}
+	if sourceOptions.Preconnect > 0 && !target.Reuse {
+		return E.New("Snell ECH-TLS preconnect requires reuse")
+	}
+	serverName := sourceOptions.SNI
 	if serverName == "" {
-		serverName = mapString(source.ObfsOpts, "host")
+		serverName = sourceOptions.Host
 	}
 	if serverName == "" {
 		serverName = source.Server
 	}
-	echConfig := mapString(source.ObfsOpts, "ech-config")
+	echConfig := sourceOptions.ECHConfig
 	if echConfig == "" {
 		return E.New("Snell ECH-TLS requires ech-config")
 	}
-	configBytes, err := base64.StdEncoding.DecodeString(echConfig)
+	configBytes, err := base64.StdEncoding.DecodeString(strings.TrimSpace(echConfig))
 	if err != nil {
 		return E.Cause(err, "decode Snell ECH config")
 	}
-	fingerprint := mapString(source.ObfsOpts, "client-fingerprint")
+	fingerprint := sourceOptions.ClientFingerprint
 	if fingerprint == "" {
 		fingerprint = source.ClientFingerprint
 	}
@@ -568,28 +620,32 @@ func applySnellObfs(target *option.SnellOutboundOptions, source *clash_outbound.
 	target.TLS = &option.OutboundTLSOptions{
 		Enabled:    true,
 		ServerName: serverName,
-		ALPN:       []string{snellECHTLSALPN},
-		Insecure:   mapBool(source.ObfsOpts, "skip-cert-verify") || mapBool(source.ObfsOpts, "insecure"),
+		ALPN:       []string{alpn},
 		ECH:        &option.OutboundECHOptions{Enabled: true, Config: encodeECHConfig(configBytes)},
 		UTLS:       &option.OutboundUTLSOptions{Enabled: true, Fingerprint: fingerprint},
 	}
+	target.Identity = identityVersion
+	target.Preconnect = sourceOptions.Preconnect
 	return nil
 }
 
-func mapString(values map[string]any, key string) string {
-	if value, loaded := values[key]; loaded {
-		return format.ToString(value)
+func resolveSnellECHTLSALPN(alpn string, protocol string) (string, error) {
+	if protocol == snellECHTLSPreviousALPN {
+		protocol = snellECHTLSALPN
 	}
-	return ""
-}
-
-func mapBool(values map[string]any, key string) bool {
-	value, loaded := values[key]
-	if !loaded {
-		return false
+	if alpn != "" && protocol != "" && alpn != protocol {
+		return "", E.New("Snell ECH-TLS alpn and protocol values conflict")
 	}
-	result, _ := value.(bool)
-	return result
+	if alpn == "" {
+		alpn = protocol
+	}
+	if alpn == "" {
+		alpn = snellECHTLSALPN
+	}
+	if alpn != snellECHTLSALPN {
+		return "", E.New("unsupported Snell ECH-TLS ALPN: ", alpn)
+	}
+	return alpn, nil
 }
 
 func clashWireGuardEndpoint(source *clash_outbound.WireGuardOption) (option.Endpoint, error) {

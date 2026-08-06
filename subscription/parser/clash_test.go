@@ -97,14 +97,7 @@ func TestParseClashUnsupportedTypesAreAggregated(t *testing.T) {
 }
 
 func TestParseClashSnellECHTLS(t *testing.T) {
-	echConfigPEM, _, err := boxTLS.ECHKeygenDefault("public.example.com")
-	if err != nil {
-		t.Fatal(err)
-	}
-	echBlock, _ := pem.Decode([]byte(echConfigPEM))
-	if echBlock == nil {
-		t.Fatal("generated ECH config is not PEM")
-	}
+	echConfig := testECHConfigBase64(t)
 	for _, testCase := range []struct {
 		name       string
 		legacyPath string
@@ -121,14 +114,15 @@ func TestParseClashSnellECHTLS(t *testing.T) {
     psk: secret
     version: 4
     identity: true
+    reuse: true
     obfs-opts:
       mode: ech-tls
       host: public.example.com
       sni: public.example.com
 %s      ech-config: %s
-      skip-cert-verify: true
+      preconnect: 2
       client-fingerprint: chrome
-`, testCase.legacyPath, base64.StdEncoding.EncodeToString(echBlock.Bytes))
+`, testCase.legacyPath, echConfig)
 			result, err := ParseClashSubscription(context.Background(), content)
 			if err != nil || len(result.Outbounds) != 1 {
 				t.Fatalf("parse Snell ECH-TLS: result=%#v err=%v", result, err)
@@ -146,6 +140,9 @@ func TestParseClashSnellECHTLS(t *testing.T) {
 			if len(options.TLS.ALPN) != 1 || options.TLS.ALPN[0] != snellECHTLSALPN {
 				t.Fatalf("unexpected Snell ECH-TLS ALPN: %#v", options.TLS.ALPN)
 			}
+			if options.Identity != 2 || options.Preconnect != 2 || !options.Reuse {
+				t.Fatalf("unexpected Snell ECH-TLS options: identity=%d preconnect=%d reuse=%v", options.Identity, options.Preconnect, options.Reuse)
+			}
 			encoded, err := json.MarshalContext(include.Context(context.Background()), &result.Outbounds[0])
 			if err != nil {
 				t.Fatal(err)
@@ -156,6 +153,117 @@ func TestParseClashSnellECHTLS(t *testing.T) {
 			assertTargetOptionsRoundTrip(t, result)
 		})
 	}
+}
+
+func TestParseClashSnellECHTLSFields(t *testing.T) {
+	echConfig := testECHConfigBase64(t)
+	for _, testCase := range []struct {
+		name         string
+		options      string
+		wantIdentity int
+	}{
+		{name: "explicit identity v1", options: "      identity-version: 1\n", wantIdentity: 1},
+		{name: "previous protocol alias", options: "      protocol: oix-snell/1\n", wantIdentity: 2},
+		{name: "legacy fallback forces identity v2", options: "      identity-version: 1\n      legacy-fallback: true\n", wantIdentity: 2},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			content := fmt.Sprintf(`proxies:
+  - name: snell-ech
+    type: snell
+    server: 127.0.0.1
+    port: 443
+    psk: secret
+    version: 4
+    reuse: true
+    obfs-opts:
+      mode: ech-tls
+%s      ech-config: %s
+`, testCase.options, echConfig)
+			result, err := ParseClashSubscription(context.Background(), content)
+			if err != nil || len(result.Outbounds) != 1 {
+				t.Fatalf("parse Snell ECH-TLS fields: result=%#v err=%v", result, err)
+			}
+			options := result.Outbounds[0].Options.(*option.SnellOutboundOptions)
+			if options.Identity != testCase.wantIdentity {
+				t.Fatalf("identity=%d, want %d", options.Identity, testCase.wantIdentity)
+			}
+			if len(options.TLS.ALPN) != 1 || options.TLS.ALPN[0] != snellECHTLSALPN {
+				t.Fatalf("legacy fallback must keep only the current ALPN: %#v", options.TLS.ALPN)
+			}
+			assertTargetOptionsRoundTrip(t, result)
+		})
+	}
+}
+
+func TestParseClashSnellECHTLSRejectsInvalidOptions(t *testing.T) {
+	echConfig := testECHConfigBase64(t)
+	for _, testCase := range []struct {
+		name    string
+		reuse   bool
+		options string
+		wantErr string
+	}{
+		{name: "unsupported ALPN", reuse: true, options: "      alpn: other/1\n", wantErr: "unsupported Snell ECH-TLS ALPN"},
+		{name: "conflicting ALPN aliases", reuse: true, options: "      alpn: snell-ech/1\n      protocol: other/1\n", wantErr: "values conflict"},
+		{name: "invalid identity version", reuse: true, options: "      identity-version: 3\n", wantErr: "unsupported Snell ECH-TLS identity version"},
+		{name: "negative preconnect", reuse: true, options: "      preconnect: -1\n", wantErr: "preconnect must be between 0 and 4"},
+		{name: "excessive preconnect", reuse: true, options: "      preconnect: 5\n", wantErr: "preconnect must be between 0 and 4"},
+		{name: "preconnect without reuse", options: "      preconnect: 1\n", wantErr: "preconnect requires reuse"},
+		{name: "insecure", reuse: true, options: "      insecure: true\n", wantErr: "requires certificate verification"},
+		{name: "skip certificate verification", reuse: true, options: "      skip-cert-verify: true\n", wantErr: "requires certificate verification"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			content := fmt.Sprintf(`proxies:
+  - name: snell-ech
+    type: snell
+    server: 127.0.0.1
+    port: 443
+    psk: secret
+    version: 4
+    reuse: %t
+    obfs-opts:
+      mode: ech-tls
+%s      ech-config: %s
+`, testCase.reuse, testCase.options, echConfig)
+			_, err := ParseClashSubscription(context.Background(), content)
+			if err == nil || !strings.Contains(err.Error(), testCase.wantErr) {
+				t.Fatalf("error=%v, want containing %q", err, testCase.wantErr)
+			}
+		})
+	}
+}
+
+func TestParseClashSnellIdentityV1(t *testing.T) {
+	result, err := ParseClashSubscription(context.Background(), `proxies:
+  - name: snell-identity
+    type: snell
+    server: 127.0.0.1
+    port: 443
+    psk: secret
+    version: 4
+    identity: true
+`)
+	if err != nil || len(result.Outbounds) != 1 {
+		t.Fatalf("parse Snell identity: result=%#v err=%v", result, err)
+	}
+	options := result.Outbounds[0].Options.(*option.SnellOutboundOptions)
+	if options.Identity != 1 {
+		t.Fatalf("identity=%d, want 1", options.Identity)
+	}
+	assertTargetOptionsRoundTrip(t, result)
+}
+
+func testECHConfigBase64(t *testing.T) string {
+	t.Helper()
+	echConfigPEM, _, err := boxTLS.ECHKeygenDefault("public.example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	echBlock, _ := pem.Decode([]byte(echConfigPEM))
+	if echBlock == nil {
+		t.Fatal("generated ECH config is not PEM")
+	}
+	return base64.StdEncoding.EncodeToString(echBlock.Bytes)
 }
 
 func assertTargetOptionsRoundTrip(t *testing.T, result Result) {

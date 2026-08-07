@@ -128,6 +128,27 @@ func TestRenderDNSFakeIPRulesWithDefaultRules(t *testing.T) {
 	}
 }
 
+func TestRenderDNSDoesNotGenerateFakeIPWhenDisabled(t *testing.T) {
+	template := &Template{}
+	options := &boxOption.Options{}
+
+	err := template.renderDNS(context.Background(), M.Metadata{}, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, server := range options.DNS.Servers {
+		if server.Tag == DNSFakeIPTag {
+			t.Fatal("unexpected FakeIP DNS server when FakeIP is disabled")
+		}
+	}
+	for _, rule := range options.DNS.Rules {
+		if rule.DefaultOptions.RouteOptions.Server == DNSFakeIPTag {
+			t.Fatal("unexpected DNS rule routed to FakeIP when FakeIP is disabled")
+		}
+	}
+}
+
 func assertFakeIPDNSRule(t *testing.T, rule boxOption.DNSRule) {
 	t.Helper()
 

@@ -351,7 +351,10 @@ func (t *Template) renderDNS(_ context.Context, metadata M.Metadata, options *op
 								Action: C.RuleActionTypeRespond,
 							},
 						},
-					}, t.fakeIPDNSRule(nil))
+					})
+					if t.EnableFakeIP {
+						options.DNS.Rules = append(options.DNS.Rules, t.fakeIPDNSRule(nil))
+					}
 				} else {
 					if t.EnableFakeIP {
 						options.DNS.Rules = append(options.DNS.Rules, t.fakeIPDNSRule(func(rule *option.RawDefaultDNSRule) {

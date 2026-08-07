@@ -17,13 +17,16 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 	if !t.DisableTrafficBypass {
 		t.renderGeoResources(metadata, options)
 	}
+
+	sniffOverrideEnabled := t.SniffOverrideDestination == C.SniffOverrideDestinationAlways ||
+		t.SniffOverrideDestination == C.SniffOverrideDestinationIfResolvable
 	options.Route.Rules = append(options.Route.Rules, option.Rule{
 		Type: C.RuleTypeDefault,
 		DefaultOptions: option.DefaultRule{
 			RuleAction: option.RuleAction{
 				Action: C.RuleActionTypeSniff,
 				SniffOptions: option.RouteActionSniff{
-					OverrideDestination: t.SniffOverrideDestination,
+					OverrideDestination: C.SniffOverrideDestinationSkip,
 				},
 			},
 		},
@@ -57,6 +60,64 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 				},
 			},
 		})
+
+	if sniffOverrideEnabled {
+		if !t.DisableSystemProxy {
+			options.Route.Rules = append(options.Route.Rules, option.Rule{
+				Type: C.RuleTypeDefault,
+				DefaultOptions: option.DefaultRule{
+					RuleAction: option.RuleAction{
+						Action: C.RuleActionTypeResolve,
+					},
+				},
+			})
+		}
+
+		sniffOverrideRules := []option.Rule{{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultRule{
+				RawDefaultRule: option.RawDefaultRule{
+					IPIsPrivate: true,
+					Invert:      true,
+				},
+			},
+		}}
+
+		if !t.DisableTrafficBypass && len(t.CustomRules) == 0 {
+			sniffOverrideRules = append(sniffOverrideRules, option.Rule{
+				Type: C.RuleTypeDefault,
+				DefaultOptions: option.DefaultRule{
+					RawDefaultRule: option.RawDefaultRule{
+						RuleSet: []string{"geoip-cn"},
+						Invert:  true,
+					},
+				},
+			})
+		}
+
+		sniffOverrideAction := option.RuleAction{
+			Action: C.RuleActionTypeSniff,
+			SniffOptions: option.RouteActionSniff{
+				OverrideDestination: t.SniffOverrideDestination,
+			},
+		}
+		if len(sniffOverrideRules) == 1 {
+			sniffOverrideRule := sniffOverrideRules[0]
+			sniffOverrideRule.DefaultOptions.RuleAction = sniffOverrideAction
+			options.Route.Rules = append(options.Route.Rules, sniffOverrideRule)
+		} else {
+			options.Route.Rules = append(options.Route.Rules, option.Rule{
+				Type: C.RuleTypeLogical,
+				LogicalOptions: option.LogicalRule{
+					RawLogicalRule: option.RawLogicalRule{
+						Mode:  C.LogicalTypeAnd,
+						Rules: sniffOverrideRules,
+					},
+					RuleAction: sniffOverrideAction,
+				},
+			})
+		}
+	}
 
 	options.Route.Rules = append(options.Route.Rules, t.BeforePrivateDirectRules...)
 
@@ -119,7 +180,7 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 			},
 		})
 	}
-	if !t.DisableSystemProxy {
+	if !t.DisableSystemProxy && !sniffOverrideEnabled {
 		options.Route.Rules = append(options.Route.Rules, option.Rule{
 			Type: C.RuleTypeDefault,
 			DefaultOptions: option.DefaultRule{

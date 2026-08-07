@@ -55,6 +55,7 @@
   "default_tag": "",
   "urltest_tag": "",
   "urltest_url": "",
+  "disable_preconnect": false,
   "deduplication_strategy": "",
   "custom_direct": {},
   "custom_selector": {},
@@ -283,6 +284,10 @@ Custom URLTest outbound tag.
 Default URL for URLTest outbounds.
 
 Only URLTest outbounds without `url` set will use this value.
+
+#### disable_preconnect
+
+Set Snell `preconnect` to `0` when generating configurations for iOS and tvOS.
 
 #### deduplication_strategy
 

@@ -62,6 +62,7 @@ type _Template struct {
 	DefaultTag            string                          `json:"default_tag,omitempty"`
 	URLTestTag            string                          `json:"urltest_tag,omitempty"`
 	URLTestURL            string                          `json:"urltest_url,omitempty"`
+	DisablePreconnect     bool                            `json:"disable_preconnect,omitempty"`
 	DeduplicationStrategy string                          `json:"deduplication_strategy,omitempty"`
 	CustomDirect          *option.DirectOutboundOptions   `json:"custom_direct,omitempty"`
 	CustomSelector        *option.SelectorOutboundOptions `json:"custom_selector,omitempty"`

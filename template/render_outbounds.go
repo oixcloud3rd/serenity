@@ -258,7 +258,26 @@ func (t *Template) renderOutbounds(metadata M.Metadata, options *boxOption.Optio
 	options.Outbounds = groupJoin(options.Outbounds, defaultTag, false, globalOutboundTags...)
 	options.Outbounds = append(options.Outbounds, allGroupOutbounds...)
 	applyDefaultURLTestURL(options.Outbounds, t.URLTestURL)
+	if t.DisablePreconnect && metadata.Platform.IsNetworkExtensionMemoryLimited() {
+		disableSnellPreconnect(options.Outbounds)
+	}
 	return nil
+}
+
+func disableSnellPreconnect(outbounds []boxOption.Outbound) {
+	for i, outbound := range outbounds {
+		if outbound.Type != C.TypeSnell {
+			continue
+		}
+		snellOptions, isSnell := outbound.Options.(*boxOption.SnellOutboundOptions)
+		if !isSnell || snellOptions == nil {
+			continue
+		}
+		newSnellOptions := *snellOptions
+		newSnellOptions.Preconnect = 0
+		outbound.Options = &newSnellOptions
+		outbounds[i] = outbound
+	}
 }
 
 func applyDefaultURLTestURL(outbounds []boxOption.Outbound, defaultURL string) {

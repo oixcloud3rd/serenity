@@ -225,7 +225,17 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 		finalOverrideAddressWithDomain = t.RouteOverrideAddressWithDomainDirect
 	}
 	if finalOverrideAddressWithDomain != "" {
-		options.Route.FinalOverrideAddressWithDomain = finalOverrideAddressWithDomain
+		options.Route.Rules = append(options.Route.Rules, option.Rule{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultRule{
+				RuleAction: option.RuleAction{
+					Action: C.RuleActionTypeRouteOptions,
+					RouteOptionsOptions: option.RouteOptionsActionOptions{
+						OverrideAddressWithDomain: finalOverrideAddressWithDomain,
+					},
+				},
+			},
+		})
 	}
 	return nil
 }

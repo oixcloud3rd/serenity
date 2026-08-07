@@ -63,7 +63,7 @@ func TestRenderRouteOverrideAddressWithDomain(t *testing.T) {
 	if err := template.renderRoute(M.Metadata{}, options); err != nil {
 		t.Fatal(err)
 	}
-	if actual := options.Route.FinalOverrideAddressWithDomain; actual != defaultMode {
+	if actual := finalRouteOverrideAddressWithDomain(options.Route.Rules); actual != defaultMode {
 		t.Fatalf("expected final override mode %q, got %q", defaultMode, actual)
 	}
 	assertRouteOverrideAddressWithDomain(t, options.Route.Rules, "direct-out", defaultMode, directMode)
@@ -87,8 +87,8 @@ func TestRenderRouteOverrideAddressWithDomainPreservesExistingValuesByDefault(t 
 	if actual != boxOption.RouteOverrideAddressWithDomain(C.RouteOverrideAddressWithDomainAlways) {
 		t.Fatalf("expected existing override mode to be preserved, got %q", actual)
 	}
-	if options.Route.FinalOverrideAddressWithDomain != "" {
-		t.Fatalf("expected no final override mode, got %q", options.Route.FinalOverrideAddressWithDomain)
+	if actual := finalRouteOverrideAddressWithDomain(options.Route.Rules); actual != "" {
+		t.Fatalf("expected no final override mode, got %q", actual)
 	}
 }
 
@@ -106,7 +106,7 @@ func TestRenderRouteOverrideAddressWithDomainUsesDirectModeForDirectFinal(t *tes
 	if err := template.renderRoute(M.Metadata{}, options); err != nil {
 		t.Fatal(err)
 	}
-	if actual := options.Route.FinalOverrideAddressWithDomain; actual != directMode {
+	if actual := finalRouteOverrideAddressWithDomain(options.Route.Rules); actual != directMode {
 		t.Fatalf("expected direct final override mode %q, got %q", directMode, actual)
 	}
 }
@@ -144,6 +144,17 @@ func routeRuleWithOverride(outbound string, mode string) boxOption.Rule {
 			},
 		},
 	}
+}
+
+func finalRouteOverrideAddressWithDomain(rules []boxOption.Rule) boxOption.RouteOverrideAddressWithDomain {
+	if len(rules) == 0 {
+		return ""
+	}
+	action := rules[len(rules)-1].DefaultOptions.RuleAction
+	if action.Action != C.RuleActionTypeRouteOptions {
+		return ""
+	}
+	return action.RouteOptionsOptions.OverrideAddressWithDomain
 }
 
 func assertRouteOverrideAddressWithDomain(

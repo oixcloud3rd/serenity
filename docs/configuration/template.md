@@ -337,13 +337,13 @@ Only generated for sing-box 1.14.0 and later.
 
 #### route_override_address_with_domain
 
-Override `override_address_with_domain` on all route actions except routes to the direct outbound. This option also controls final when final does not point to the direct outbound.
+Override `override_address_with_domain` on all route actions except routes to the direct outbound. When final does not point to the direct outbound, a trailing non-final `route-options` action applies this mode before final is selected.
 
 One of `disable`, `always`, or `if_resolvable`. An empty value leaves existing route action values unchanged.
 
 #### route_override_address_with_domain_direct
 
-Override `override_address_with_domain` on all route actions to the direct outbound. This option also controls final when final points to the direct outbound.
+Override `override_address_with_domain` on all route actions to the direct outbound. When final points to the direct outbound, a trailing non-final `route-options` action applies this mode before final is selected.
 
 One of `disable`, `always`, or `if_resolvable`. An empty value leaves existing direct route action values unchanged.
 

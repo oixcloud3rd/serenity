@@ -15,7 +15,6 @@
   "disable_sniff": false,
   "sniff_override_destination": "",
   "disable_rule_action": false,
-  "remote_resolve": false,
   
   // DNS
 
@@ -151,10 +150,6 @@ Don`t generate rule action options.
 #### disable_traffic_bypass
 
 Disable traffic bypass for Chinese DNS queries and connections.
-
-#### remote_resolve
-
-Don't generate `doamin_strategy` options for inbounds.
 
 #### dns
 

@@ -28,7 +28,6 @@ type _Template struct {
 	DisableSniff             bool                            `json:"disable_sniff,omitempty"`
 	SniffOverrideDestination option.SniffOverrideDestination `json:"sniff_override_destination,omitempty"`
 	DisableRuleAction        bool                            `json:"disable_rule_action,omitempty"`
-	RemoteResolve            bool                            `json:"remote_resolve,omitempty"`
 
 	// DNS
 	DNSServers               []option.DNSServerOptions      `json:"dns_servers,omitempty"`

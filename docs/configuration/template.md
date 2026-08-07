@@ -138,11 +138,11 @@ Don`t generate protocol sniffing options.
 
 Controls whether the connection destination is replaced with a domain detected from HTTP, TLS, or QUIC.
 
-One of `disabled`, `always`, or `dns_evaluate`. The default is `disabled`.
+One of `disabled`, `always`, or `if_resolvable`. The default is `disabled`.
 
 For compatibility, `false` is equivalent to `disabled` and `true` is equivalent to `always`.
 
-`dns_evaluate` overrides the destination only when the detected domain is known to have a valid A or AAAA record.
+`if_resolvable` overrides the destination only when the detected domain is known to have a valid A or AAAA record.
 
 #### disable_rule_action
 

@@ -14,7 +14,7 @@ import (
 func TestRenderRouteSniffOverrideDestination(t *testing.T) {
 	template := &Template{
 		Template: serenityOption.Template{
-			SniffOverrideDestination: boxOption.SniffOverrideDestination(C.SniffOverrideDestinationDNSEvaluate),
+			SniffOverrideDestination: boxOption.SniffOverrideDestination(C.SniffOverrideDestinationIfResolvable),
 		},
 	}
 	options := &boxOption.Options{}
@@ -27,8 +27,8 @@ func TestRenderRouteSniffOverrideDestination(t *testing.T) {
 		if rule.DefaultOptions.Action != C.RuleActionTypeSniff {
 			continue
 		}
-		if actual := string(rule.DefaultOptions.SniffOptions.OverrideDestination); actual != C.SniffOverrideDestinationDNSEvaluate {
-			t.Fatalf("expected sniff override destination %q, got %q", C.SniffOverrideDestinationDNSEvaluate, actual)
+		if actual := string(rule.DefaultOptions.SniffOptions.OverrideDestination); actual != C.SniffOverrideDestinationIfResolvable {
+			t.Fatalf("expected sniff override destination %q, got %q", C.SniffOverrideDestinationIfResolvable, actual)
 		}
 		return
 	}
@@ -42,7 +42,7 @@ func TestTemplateSniffOverrideDestinationCompatibility(t *testing.T) {
 	}{
 		{`"disabled"`, C.SniffOverrideDestinationDisabled},
 		{`"always"`, C.SniffOverrideDestinationAlways},
-		{`"dns_evaluate"`, C.SniffOverrideDestinationDNSEvaluate},
+		{`"if_resolvable"`, C.SniffOverrideDestinationIfResolvable},
 		{`false`, C.SniffOverrideDestinationDisabled},
 		{`true`, C.SniffOverrideDestinationAlways},
 	}

@@ -13,7 +13,6 @@
   "domain_strategy_local": "",
   "disable_traffic_bypass": false,
   "disable_sniff": false,
-  "sniff_override_destination": "",
   "disable_rule_action": false,
   
   // DNS
@@ -64,6 +63,8 @@
   // Route
 
   "default_http_client": "",
+  "route_override_address_with_domain": "",
+  "route_override_address_with_domain_direct": "",
   "pre_rules": [],
   "custom_rules": [],
   "enable_jsdelivr": false,
@@ -133,18 +134,6 @@ Local sing-box domain strategy.
 #### disable_sniff
 
 Don`t generate protocol sniffing options.
-
-#### sniff_override_destination
-
-Controls whether the connection destination is replaced with a domain detected from HTTP, TLS, or QUIC.
-
-One of `skip`, `disable`, `always`, or `if_resolvable`. The default is `skip`.
-
-`skip` detects the protocol and domain without deciding whether to override the destination, allowing a later sniff action to make that decision without reading traffic again. `disable` prevents later sniff actions from overriding the destination.
-
-For compatibility, `false` is equivalent to `skip` and `true` is equivalent to `always`.
-
-`if_resolvable` overrides the destination only when the detected domain is known to have a valid A or AAAA record.
 
 #### disable_rule_action
 
@@ -345,6 +334,18 @@ Use jsDelivr CDN and direct outbound for default rule sets or Geo resources.
 Default [HTTP Client](https://sing-box.sagernet.org/configuration/shared/http-client/) tag used by remote rule-sets.
 
 Only generated for sing-box 1.14.0 and later.
+
+#### route_override_address_with_domain
+
+Override `override_address_with_domain` on all route actions except routes to the direct outbound. This option also controls final when final does not point to the direct outbound.
+
+One of `disable`, `always`, or `if_resolvable`. An empty value leaves existing route action values unchanged.
+
+#### route_override_address_with_domain_direct
+
+Override `override_address_with_domain` on all route actions to the direct outbound. This option also controls final when final points to the direct outbound.
+
+One of `disable`, `always`, or `if_resolvable`. An empty value leaves existing direct route action values unchanged.
 
 #### custom_geoip
 

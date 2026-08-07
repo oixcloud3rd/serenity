@@ -13,6 +13,7 @@
   "domain_strategy_local": "",
   "disable_traffic_bypass": false,
   "disable_sniff": false,
+  "sniff_override_destination": "",
   "disable_rule_action": false,
   "remote_resolve": false,
   
@@ -132,6 +133,16 @@ Local sing-box domain strategy.
 #### disable_sniff
 
 Don`t generate protocol sniffing options.
+
+#### sniff_override_destination
+
+Controls whether the connection destination is replaced with a domain detected from HTTP, TLS, or QUIC.
+
+One of `disabled`, `always`, or `dns_evaluate`. The default is `disabled`.
+
+For compatibility, `false` is equivalent to `disabled` and `true` is equivalent to `always`.
+
+`dns_evaluate` overrides the destination only when the detected domain is known to have a valid A or AAAA record.
 
 #### disable_rule_action
 

@@ -329,8 +329,8 @@ github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 h1:zYyBkD/k9seD2A7fsi6
 github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646/go.mod h1:jpp1/29i3P1S/RLdc7JQKbRpFeM1dOBd8T9ki5s+AY8=
 github.com/oasisprotocol/deoxysii v0.0.0-20220228165953-2091330c22b7 h1:1102pQc2SEPp5+xrS26wEaeb26sZy6k9/ZXlZN+eXE4=
 github.com/oasisprotocol/deoxysii v0.0.0-20220228165953-2091330c22b7/go.mod h1:UqoUn6cHESlliMhOnKLWr+CBH+e3bazUPvFj1XZwAjs=
-github.com/oixcloud3rd/sing-box v1.14.0-beta.7.0.20260806063250-eb0148500451 h1:R8dctgvHVpn/oTgN3E5MyIotSnE3jL/JM61QmtCwWYs=
-github.com/oixcloud3rd/sing-box v1.14.0-beta.7.0.20260806063250-eb0148500451/go.mod h1:pmCBFrTEKbIGqPwkxBp1zgOWGeJs5VPxlatZWTa3ZmE=
+github.com/oixcloud3rd/sing-box v1.14.0-beta.7.0.20260807111205-d5d73e88151a h1:lH0/InG1a6/SD9xDTjeJ5uvPUbBcFGspGkI9THlWQ04=
+github.com/oixcloud3rd/sing-box v1.14.0-beta.7.0.20260807111205-d5d73e88151a/go.mod h1:pmCBFrTEKbIGqPwkxBp1zgOWGeJs5VPxlatZWTa3ZmE=
 github.com/oixcloud3rd/sing-snell v0.0.0-20260806061941-924f2fe9981d h1:WrLx6ds1IUWGk0RkttslyWk9Al4cQiNHwMRnZ8w5hLc=
 github.com/oixcloud3rd/sing-snell v0.0.0-20260806061941-924f2fe9981d/go.mod h1:wdPnrzkEbbxIGryTzQd2tU988Le/CwkhUgOBqzTX1yw=
 github.com/openacid/errors v0.8.1/go.mod h1:GUQEJJOJE3W9skHm8E8Y4phdl2LLEN8iD7c5gcGgdx0=

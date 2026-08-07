@@ -22,6 +22,9 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 		DefaultOptions: option.DefaultRule{
 			RuleAction: option.RuleAction{
 				Action: C.RuleActionTypeSniff,
+				SniffOptions: option.RouteActionSniff{
+					OverrideDestination: t.SniffOverrideDestination,
+				},
 			},
 		},
 	},

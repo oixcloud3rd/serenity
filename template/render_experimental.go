@@ -12,10 +12,17 @@ import (
 )
 
 func (t *Template) renderExperimental(ctx context.Context, metadata M.Metadata, options *option.Options, profileName string) error {
-	if t.DisableCacheFile && t.DisableClashMode && t.CustomClashAPI == nil {
+	enableUnifiedDelay := t.EnableUnifiedDelay &&
+		(metadata.Version == nil || metadata.Version.GreaterThanOrEqual(semver.ParseVersion("1.14.0-beta.9")))
+	if t.DisableCacheFile && t.DisableClashMode && t.CustomClashAPI == nil && !enableUnifiedDelay {
 		return nil
 	}
 	options.Experimental = &option.ExperimentalOptions{}
+	if enableUnifiedDelay {
+		options.Experimental.UnifiedDelay = &option.UnifiedDelayOptions{
+			Enabled: true,
+		}
+	}
 	if !t.DisableCacheFile {
 		options.Experimental.CacheFile = &option.CacheFileOptions{
 			Enabled:     true,

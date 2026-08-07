@@ -83,6 +83,7 @@ type _Template struct {
 	DisableCacheFile          bool `json:"disable_cache_file,omitempty"`
 	DisableExternalController bool `json:"disable_external_controller,omitempty"`
 	DisableClashMode          bool `json:"disable_clash_mode,omitempty"`
+	EnableUnifiedDelay        bool `json:"enable_unified_delay,omitempty"`
 
 	ClashModeLeak   string                                `json:"clash_mode_leak,omitempty"`
 	ClashModeRule   string                                `json:"clash_mode_rule,omitempty"`

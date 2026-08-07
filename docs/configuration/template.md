@@ -76,6 +76,7 @@
 
   "disable_cache_file": false,
   "disable_clash_mode": false,
+  "enable_unified_delay": false,
   "clash_mode_rule": "",
   "clash_mode_global": "",
   "clash_mode_direct": "",
@@ -370,6 +371,12 @@ Don't generate `cache_file` related options.
 #### disable_clash_mode
 
 Don't generate `clash_mode` related options.
+
+#### enable_unified_delay
+
+Enable unified delay for URL tests on sing-box 1.14.0-beta.9 and later.
+
+URL tests send a warm-up request and measure only a second request on the same connection, excluding connection establishment and TLS handshake time from the reported delay.
 
 #### clash_mode_rule
 

@@ -25,38 +25,49 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 				Action: C.RuleActionTypeSniff,
 			},
 		},
-	},
-		option.Rule{
-			Type: C.RuleTypeLogical,
-			LogicalOptions: option.LogicalRule{
-				RawLogicalRule: option.RawLogicalRule{
-					Mode: C.LogicalTypeOr,
-					Rules: []option.Rule{
-						{
-							Type: C.RuleTypeDefault,
-							DefaultOptions: option.DefaultRule{
-								RawDefaultRule: option.RawDefaultRule{
-									Port: []uint16{53},
-								},
+	})
+	options.Route.Rules = append(options.Route.Rules, option.Rule{
+		Type: C.RuleTypeLogical,
+		LogicalOptions: option.LogicalRule{
+			RawLogicalRule: option.RawLogicalRule{
+				Mode: C.LogicalTypeOr,
+				Rules: []option.Rule{
+					{
+						Type: C.RuleTypeDefault,
+						DefaultOptions: option.DefaultRule{
+							RawDefaultRule: option.RawDefaultRule{
+								Port: []uint16{53},
 							},
 						},
-						{
-							Type: C.RuleTypeDefault,
-							DefaultOptions: option.DefaultRule{
-								RawDefaultRule: option.RawDefaultRule{
-									Protocol: []string{C.ProtocolDNS},
-								},
+					},
+					{
+						Type: C.RuleTypeDefault,
+						DefaultOptions: option.DefaultRule{
+							RawDefaultRule: option.RawDefaultRule{
+								Protocol: []string{C.ProtocolDNS},
 							},
 						},
 					},
 				},
+			},
+			RuleAction: option.RuleAction{
+				Action: C.RuleActionTypeHijackDNS,
+			},
+		},
+	})
+	options.Route.Rules = append(options.Route.Rules, t.BeforeResolveRules...)
+
+	if !t.DisableSystemProxy {
+		options.Route.Rules = append(options.Route.Rules, option.Rule{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultRule{
 				RuleAction: option.RuleAction{
-					Action: C.RuleActionTypeHijackDNS,
+					Action: C.RuleActionTypeResolve,
 				},
 			},
 		})
-
-	options.Route.Rules = append(options.Route.Rules, t.BeforePrivateDirectRules...)
+	}
+	options.Route.Rules = append(options.Route.Rules, t.AfterResolveRules...)
 
 	directTag := t.DirectTag
 	defaultTag := t.DefaultTag
@@ -113,16 +124,6 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 					RouteOptions: option.RouteActionOptions{
 						Outbound: directTag,
 					},
-				},
-			},
-		})
-	}
-	if !t.DisableSystemProxy {
-		options.Route.Rules = append(options.Route.Rules, option.Rule{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultRule{
-				RuleAction: option.RuleAction{
-					Action: C.RuleActionTypeResolve,
 				},
 			},
 		})

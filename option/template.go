@@ -74,7 +74,8 @@ type _Template struct {
 	RouteOverrideAddressWithDomainDirect   option.RouteOverrideAddressWithDomain `json:"route_override_address_with_domain_direct,omitempty"`
 	RouteOverrideAddressWithDomainEndpoint option.RouteOverrideAddressWithDomain `json:"route_override_address_with_domain_endpoint,omitempty"`
 	StartRules                             []option.Rule                         `json:"start_rules,omitempty"`
-	BeforePrivateDirectRules               []option.Rule                         `json:"before_private_direct_rules,omitempty"`
+	BeforeResolveRules                     []option.Rule                         `json:"before_resolve_rules,omitempty"`
+	AfterResolveRules                      []option.Rule                         `json:"after_resolve_rules,omitempty"`
 	PreRules                               []option.Rule                         `json:"pre_rules,omitempty"`
 	CustomRules                            []option.Rule                         `json:"custom_rules,omitempty"`
 	EnableJSDelivr                         bool                                  `json:"enable_jsdelivr,omitempty"`

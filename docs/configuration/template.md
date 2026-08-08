@@ -66,6 +66,8 @@
   "route_override_address_with_domain": "",
   "route_override_address_with_domain_direct": "",
   "route_override_address_with_domain_endpoint": "",
+  "before_resolve_rules": [],
+  "after_resolve_rules": [],
   "pre_rules": [],
   "custom_rules": [],
   "enable_jsdelivr": false,
@@ -313,6 +315,18 @@ Custom [Selector](https://sing-box.sagernet.org/configuration/outbound/selector/
 #### custom_urltest
 
 Custom [URLTest](https://sing-box.sagernet.org/configuration/outbound/urltest/) outbound template.
+
+#### before_resolve_rules
+
+List of [Rule](https://sing-box.sagernet.org/configuration/route/rule/).
+
+Will be applied after the DNS hijacking rule and before the generated domain resolution rule.
+
+#### after_resolve_rules
+
+List of [Rule](https://sing-box.sagernet.org/configuration/route/rule/).
+
+Will be applied after the generated domain resolution rule and before the private IP direct rule.
 
 #### pre_rules
 

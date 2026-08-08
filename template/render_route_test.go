@@ -184,6 +184,76 @@ func TestRenderRouteDoesNotForceResolveWithFakeIP(t *testing.T) {
 	}
 }
 
+func TestRenderRoutePlacesStagedRules(t *testing.T) {
+	template := &Template{
+		Template: serenityOption.Template{
+			DisableTrafficBypass: true,
+			DisableClashMode:     true,
+			BeforeResolveRules: []boxOption.Rule{
+				routeRuleWithOverride("before-resolve", ""),
+			},
+			AfterResolveRules: []boxOption.Rule{
+				routeRuleWithOverride("after-resolve", ""),
+			},
+		},
+	}
+	options := &boxOption.Options{}
+
+	if err := template.renderRoute(M.Metadata{}, options); err != nil {
+		t.Fatal(err)
+	}
+
+	sniffIndex := -1
+	hijackDNSIndex := -1
+	beforeResolveIndex := -1
+	resolveIndex := -1
+	afterResolveIndex := -1
+	privateDirectIndex := -1
+	for index, rule := range options.Route.Rules {
+		action := rule.DefaultOptions.RuleAction
+		if action.Action == C.RuleActionTypeSniff {
+			sniffIndex = index
+		}
+		if rule.LogicalOptions.RuleAction.Action == C.RuleActionTypeHijackDNS {
+			hijackDNSIndex = index
+		}
+		if action.Action == C.RuleActionTypeRoute && action.RouteOptions.Outbound == "before-resolve" {
+			beforeResolveIndex = index
+		}
+		if action.Action == C.RuleActionTypeResolve {
+			resolveIndex = index
+		}
+		if action.Action == C.RuleActionTypeRoute && action.RouteOptions.Outbound == "after-resolve" {
+			afterResolveIndex = index
+		}
+		if rule.DefaultOptions.IPIsPrivate && action.Action == C.RuleActionTypeRoute && action.RouteOptions.Outbound == DefaultDirectTag {
+			privateDirectIndex = index
+		}
+	}
+	if sniffIndex == -1 || hijackDNSIndex == -1 || beforeResolveIndex == -1 || resolveIndex == -1 || afterResolveIndex == -1 || privateDirectIndex == -1 {
+		t.Fatalf(
+			"missing expected route rules: sniff=%d hijack_dns=%d before_resolve=%d resolve=%d after_resolve=%d private_direct=%d",
+			sniffIndex,
+			hijackDNSIndex,
+			beforeResolveIndex,
+			resolveIndex,
+			afterResolveIndex,
+			privateDirectIndex,
+		)
+	}
+	if !(sniffIndex < hijackDNSIndex && hijackDNSIndex < beforeResolveIndex && beforeResolveIndex < resolveIndex && resolveIndex < afterResolveIndex && afterResolveIndex < privateDirectIndex) {
+		t.Fatalf(
+			"unexpected staged rule order: sniff=%d hijack_dns=%d before_resolve=%d resolve=%d after_resolve=%d private_direct=%d",
+			sniffIndex,
+			hijackDNSIndex,
+			beforeResolveIndex,
+			resolveIndex,
+			afterResolveIndex,
+			privateDirectIndex,
+		)
+	}
+}
+
 func routeRuleWithOverride(outbound string, mode string) boxOption.Rule {
 	return boxOption.Rule{
 		Type: C.RuleTypeDefault,

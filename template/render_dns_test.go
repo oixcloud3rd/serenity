@@ -226,6 +226,104 @@ func TestRenderDNSDomainResolvers(t *testing.T) {
 	}
 }
 
+func TestRenderDNSLocalPreferredByRule(t *testing.T) {
+	tests := []struct {
+		name             string
+		version          string
+		localDNS         string
+		enableLocalSetup bool
+		expectedServer   string
+	}{
+		{
+			name:           "latest local server",
+			localDNS:       "local",
+			expectedServer: DNSLocalTag,
+		},
+		{
+			name:     "sing-box 1.13",
+			version:  "1.13.0",
+			localDNS: "local",
+		},
+		{
+			name:     "sing-box 1.14 prerelease",
+			version:  "1.14.0-alpha.32",
+			localDNS: "local",
+		},
+		{
+			name:           "sing-box 1.14",
+			version:        "1.14.0",
+			localDNS:       "local",
+			expectedServer: DNSLocalTag,
+		},
+		{
+			name:     "remote local server",
+			version:  "1.14.0",
+			localDNS: "https://223.5.5.5/dns-query",
+		},
+		{
+			name:           "automatic local setup",
+			version:        "1.14.0",
+			localDNS:       "https://dns.alidns.com/dns-query",
+			expectedServer: DNSLocalSetupTag,
+		},
+		{
+			name:             "manual local setup",
+			version:          "1.14.0",
+			localDNS:         "https://223.5.5.5/dns-query",
+			enableLocalSetup: true,
+			expectedServer:   DNSLocalSetupTag,
+		},
+		{
+			name:     "local setup before sing-box 1.14",
+			version:  "1.13.0",
+			localDNS: "https://dns.alidns.com/dns-query",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			metadata := M.Metadata{}
+			if test.version != "" {
+				metadata.Version = common.Ptr(semver.ParseVersion(test.version))
+			}
+			template := &Template{
+				Template: serenityOption.Template{
+					DNSLocal:         test.localDNS,
+					EnableLocalSetup: test.enableLocalSetup,
+				},
+			}
+			var options boxOption.Options
+			if err := template.renderDNS(context.Background(), metadata, &options); err != nil {
+				t.Fatal(err)
+			}
+
+			preferredRuleIndex := -1
+			preferredRuleServer := ""
+			globalRuleIndex := -1
+			for index, rule := range options.DNS.Rules {
+				if len(rule.DefaultOptions.PreferredBy) == 1 {
+					preferredRuleIndex = index
+					preferredRuleServer = rule.DefaultOptions.PreferredBy[0]
+					if rule.DefaultOptions.Action != C.RuleActionTypeRoute {
+						t.Fatalf("expected preferred_by rule action %q, got %q", C.RuleActionTypeRoute, rule.DefaultOptions.Action)
+					}
+					if rule.DefaultOptions.RouteOptions.Server != preferredRuleServer {
+						t.Fatalf("expected preferred_by rule server %q, got %q", preferredRuleServer, rule.DefaultOptions.RouteOptions.Server)
+					}
+				}
+				if rule.DefaultOptions.ClashMode == "Global" && rule.DefaultOptions.RouteOptions.Server == DNSDefaultTag {
+					globalRuleIndex = index
+				}
+			}
+			if preferredRuleServer != test.expectedServer {
+				t.Fatalf("expected preferred_by server %q, got %q", test.expectedServer, preferredRuleServer)
+			}
+			if preferredRuleIndex != -1 && globalRuleIndex != -1 && preferredRuleIndex >= globalRuleIndex {
+				t.Fatalf("expected preferred_by local rule before Global rule, got %d >= %d", preferredRuleIndex, globalRuleIndex)
+			}
+		})
+	}
+}
+
 func findDNSServer(t *testing.T, servers []boxOption.DNSServerOptions, tag string) *boxOption.DNSServerOptions {
 	t.Helper()
 	for index := range servers {

@@ -238,6 +238,29 @@ func (t *Template) renderDNS(_ context.Context, metadata M.Metadata, options *op
 		clashModeDirect = "Direct"
 	}
 
+	var preferredByServer string
+	if localDNSOptions.Type == C.DNSTypeLocal {
+		preferredByServer = DNSLocalTag
+	} else if localDNSIsDomain || t.EnableLocalSetup {
+		preferredByServer = DNSLocalSetupTag
+	}
+	if preferredByServer != "" && (metadata.Version == nil || metadata.Version.GreaterThanOrEqual(semver.ParseVersion("1.14.0"))) {
+		options.DNS.Rules = append(options.DNS.Rules, option.DNSRule{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: option.DefaultDNSRule{
+				RawDefaultDNSRule: option.RawDefaultDNSRule{
+					PreferredBy: []string{preferredByServer},
+				},
+				DNSRuleAction: option.DNSRuleAction{
+					Action: C.RuleActionTypeRoute,
+					RouteOptions: option.DNSRouteActionOptions{
+						Server: preferredByServer,
+					},
+				},
+			},
+		})
+	}
+
 	if !t.DisableClashMode {
 		if t.EnableFakeIP {
 			options.DNS.Rules = append(options.DNS.Rules, t.fakeIPDNSRule(func(rule *option.RawDefaultDNSRule) {

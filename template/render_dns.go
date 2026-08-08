@@ -119,6 +119,21 @@ func parseDNSServerOptions(address string, detour string, addressResolver string
 	}
 }
 
+func isDNSServerDomain(address string) bool {
+	serverURL, err := url.Parse(address)
+	if err != nil {
+		return false
+	}
+	hostname := serverURL.Hostname()
+	if hostname == "" {
+		if serverURL.Scheme != "" {
+			return false
+		}
+		hostname = address
+	}
+	return hostname != "local" && BM.IsDomainName(hostname)
+}
+
 func (t *Template) renderDNS(_ context.Context, metadata M.Metadata, options *option.Options) error {
 	var domainStrategy option.DomainStrategy
 	if t.DomainStrategy != option.DomainStrategy(C.DomainStrategyAsIS) {
@@ -160,12 +175,7 @@ func (t *Template) renderDNS(_ context.Context, metadata M.Metadata, options *op
 		defaultTag = DefaultDefaultTag
 	}
 
-	var defaultAddressResolver string
-	if dnsDefaultUrl, err := url.Parse(dnsDefault); err == nil && BM.IsDomainName(dnsDefaultUrl.Hostname()) {
-		defaultAddressResolver = DNSLocalTag
-	}
-
-	defaultDNSOptions := parseDNSServerOptions(dnsDefault, defaultTag, defaultAddressResolver)
+	defaultDNSOptions := parseDNSServerOptions(dnsDefault, defaultTag, "")
 	defaultDNSOptions.Tag = DNSDefaultTag
 	options.DNS.Servers = append(options.DNS.Servers, defaultDNSOptions)
 
@@ -177,19 +187,8 @@ func (t *Template) renderDNS(_ context.Context, metadata M.Metadata, options *op
 	} else {
 		localDNSOptions = parseDNSServerOptions(dnsLocal, directTag, "")
 		localDNSOptions.Tag = DNSLocalTag
-		if BM.IsDomainName(dnsLocal) {
-			localDNSIsDomain = true
-		} else if dnsLocalUrl, err := url.Parse(dnsLocal); err == nil {
-			switch dnsLocalUrl.Scheme {
-			case "tcp", "udp", "tls", "https", "quic", "h3":
-				localDNSIsDomain = true
-			}
-		}
-		if localDNSIsDomain || t.EnableLocalSetup {
-			if defaultAddressResolver == DNSLocalTag {
-				setDNSServerDomainResolver(&defaultDNSOptions, DNSLocalSetupTag)
-				options.DNS.Servers[len(options.DNS.Servers)-1] = defaultDNSOptions
-			}
+		localDNSIsDomain = isDNSServerDomain(dnsLocal)
+		if localDNSIsDomain {
 			setDNSServerDomainResolver(&localDNSOptions, DNSLocalSetupTag)
 		}
 	}

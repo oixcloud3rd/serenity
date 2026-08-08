@@ -149,6 +149,112 @@ func TestRenderDNSDoesNotGenerateFakeIPWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestRenderDNSDomainResolvers(t *testing.T) {
+	tests := []struct {
+		name                string
+		defaultDNS          string
+		localDNS            string
+		enableLocalSetup    bool
+		expectedLocalSetup  bool
+		expectedLocalServer string
+	}{
+		{
+			name:       "local IP URL",
+			defaultDNS: "tls://dns.google",
+			localDNS:   "https://223.5.5.5/dns-query",
+		},
+		{
+			name:                "local domain URL",
+			defaultDNS:          "tls://dns.google",
+			localDNS:            "https://dns.alidns.com/dns-query",
+			expectedLocalSetup:  true,
+			expectedLocalServer: DNSLocalSetupTag,
+		},
+		{
+			name:                "bare domain names",
+			defaultDNS:          "dns.google",
+			localDNS:            "dns.alidns.com",
+			expectedLocalSetup:  true,
+			expectedLocalServer: DNSLocalSetupTag,
+		},
+		{
+			name:       "system resolver",
+			defaultDNS: "tls://dns.google",
+			localDNS:   "local",
+		},
+		{
+			name:               "forced local setup with IP URL",
+			defaultDNS:         "tls://dns.google",
+			localDNS:           "https://223.5.5.5/dns-query",
+			enableLocalSetup:   true,
+			expectedLocalSetup: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			template := &Template{
+				Template: serenityOption.Template{
+					DNS:              test.defaultDNS,
+					DNSLocal:         test.localDNS,
+					EnableLocalSetup: test.enableLocalSetup,
+				},
+			}
+			var options boxOption.Options
+			if err := template.renderDNS(context.Background(), M.Metadata{}, &options); err != nil {
+				t.Fatal(err)
+			}
+
+			defaultServer := findDNSServer(t, options.DNS.Servers, DNSDefaultTag)
+			if resolver := dnsServerDomainResolver(defaultServer); resolver != "" {
+				t.Fatalf("expected default DNS resolver to be unset, got %q", resolver)
+			}
+			localServer := findDNSServer(t, options.DNS.Servers, DNSLocalTag)
+			if resolver := dnsServerDomainResolver(localServer); resolver != test.expectedLocalServer {
+				t.Fatalf("expected local DNS resolver %q, got %q", test.expectedLocalServer, resolver)
+			}
+			localSetupFound := false
+			for _, server := range options.DNS.Servers {
+				if server.Tag == DNSLocalSetupTag {
+					localSetupFound = true
+					break
+				}
+			}
+			if localSetupFound != test.expectedLocalSetup {
+				t.Fatalf("expected local_setup presence %t, got %t", test.expectedLocalSetup, localSetupFound)
+			}
+		})
+	}
+}
+
+func findDNSServer(t *testing.T, servers []boxOption.DNSServerOptions, tag string) *boxOption.DNSServerOptions {
+	t.Helper()
+	for index := range servers {
+		if servers[index].Tag == tag {
+			return &servers[index]
+		}
+	}
+	t.Fatalf("DNS server %q not found", tag)
+	return nil
+}
+
+func dnsServerDomainResolver(server *boxOption.DNSServerOptions) string {
+	var resolver *boxOption.DomainResolveOptions
+	switch options := server.Options.(type) {
+	case *boxOption.LocalDNSServerOptions:
+		resolver = options.DialerOptions.DomainResolver
+	case *boxOption.RemoteDNSServerOptions:
+		resolver = options.DialerOptions.DomainResolver
+	case *boxOption.RemoteTLSDNSServerOptions:
+		resolver = options.DialerOptions.DomainResolver
+	case *boxOption.RemoteHTTPSDNSServerOptions:
+		resolver = options.DialerOptions.DomainResolver
+	}
+	if resolver == nil {
+		return ""
+	}
+	return resolver.Server
+}
+
 func assertFakeIPDNSRule(t *testing.T, rule boxOption.DNSRule) {
 	t.Helper()
 

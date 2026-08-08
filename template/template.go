@@ -53,13 +53,13 @@ func (t *Template) Render(ctx context.Context, metadata M.Metadata, profileName 
 	if err != nil {
 		return nil, E.Cause(err, "render dns")
 	}
-	err = t.renderRoute(metadata, &options)
-	if err != nil {
-		return nil, E.Cause(err, "render route")
-	}
 	err = t.renderEndpoints(metadata, &options, subscriptions)
 	if err != nil {
 		return nil, E.Cause(err, "render endpoints")
+	}
+	err = t.renderRoute(metadata, &options)
+	if err != nil {
+		return nil, E.Cause(err, "render route")
 	}
 	err = t.renderInbounds(metadata, &options)
 	if err != nil {

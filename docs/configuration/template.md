@@ -65,6 +65,7 @@
   "default_http_client": "",
   "route_override_address_with_domain": "",
   "route_override_address_with_domain_direct": "",
+  "route_override_address_with_domain_endpoint": "",
   "pre_rules": [],
   "custom_rules": [],
   "enable_jsdelivr": false,
@@ -337,7 +338,7 @@ Only generated for sing-box 1.14.0 and later.
 
 #### route_override_address_with_domain
 
-Override `override_address_with_domain` on all route actions except routes to the direct outbound. When final does not point to the direct outbound, a trailing non-final `route-options` action applies this mode before final is selected.
+Override `override_address_with_domain` on route actions that point to neither the direct outbound nor an endpoint. For a final in the same category, a trailing non-final `route-options` action applies this mode before final is selected.
 
 One of `disable`, `always`, or `if_resolvable`. An empty value leaves existing route action values unchanged.
 
@@ -345,7 +346,13 @@ One of `disable`, `always`, or `if_resolvable`. An empty value leaves existing r
 
 Override `override_address_with_domain` on all route actions to the direct outbound. When final points to the direct outbound, a trailing non-final `route-options` action applies this mode before final is selected.
 
-One of `disable`, `always`, or `if_resolvable`. An empty value leaves existing direct route action values unchanged.
+One of `disable`, `always`, or `if_resolvable`. An empty value leaves existing direct route action values unchanged and does not fall back to `route_override_address_with_domain`.
+
+#### route_override_address_with_domain_endpoint
+
+Override `override_address_with_domain` on all route actions to endpoints, including WireGuard and Tailscale endpoints. When final points to an endpoint, a trailing non-final `route-options` action applies this mode before final is selected.
+
+One of `disable`, `always`, or `if_resolvable`. An empty value leaves existing endpoint route action values unchanged and does not fall back to `route_override_address_with_domain`.
 
 #### custom_geoip
 

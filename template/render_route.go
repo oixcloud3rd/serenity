@@ -214,16 +214,26 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 	options.Route.DefaultDomainResolver = &option.DomainResolveOptions{
 		Server: DNSLocalTag,
 	}
+	endpointTags := make(map[string]bool, len(options.Endpoints))
+	for _, endpoint := range options.Endpoints {
+		endpointTags[endpoint.Tag] = true
+	}
 	applyRouteOverrideAddressWithDomain(
 		options.Route.Rules,
 		directTag,
+		endpointTags,
 		t.RouteOverrideAddressWithDomain,
 		t.RouteOverrideAddressWithDomainDirect,
+		t.RouteOverrideAddressWithDomainEndpoint,
 	)
-	finalOverrideAddressWithDomain := t.RouteOverrideAddressWithDomain
-	if defaultTag == directTag {
-		finalOverrideAddressWithDomain = t.RouteOverrideAddressWithDomainDirect
-	}
+	finalOverrideAddressWithDomain := routeOverrideAddressWithDomainMode(
+		defaultTag,
+		directTag,
+		endpointTags,
+		t.RouteOverrideAddressWithDomain,
+		t.RouteOverrideAddressWithDomainDirect,
+		t.RouteOverrideAddressWithDomainEndpoint,
+	)
 	if finalOverrideAddressWithDomain != "" {
 		options.Route.Rules = append(options.Route.Rules, option.Rule{
 			Type: C.RuleTypeDefault,
@@ -243,16 +253,18 @@ func (t *Template) renderRoute(metadata M.Metadata, options *option.Options) err
 func applyRouteOverrideAddressWithDomain(
 	rules []option.Rule,
 	directTag string,
+	endpointTags map[string]bool,
 	defaultMode option.RouteOverrideAddressWithDomain,
 	directMode option.RouteOverrideAddressWithDomain,
+	endpointMode option.RouteOverrideAddressWithDomain,
 ) {
 	for index := range rules {
 		rule := &rules[index]
 		if rule.Type == C.RuleTypeLogical {
-			applyRouteOverrideAddressWithDomain(rule.LogicalOptions.Rules, directTag, defaultMode, directMode)
-			applyRouteActionOverrideAddressWithDomain(&rule.LogicalOptions.RuleAction, directTag, defaultMode, directMode)
+			applyRouteOverrideAddressWithDomain(rule.LogicalOptions.Rules, directTag, endpointTags, defaultMode, directMode, endpointMode)
+			applyRouteActionOverrideAddressWithDomain(&rule.LogicalOptions.RuleAction, directTag, endpointTags, defaultMode, directMode, endpointMode)
 		} else {
-			applyRouteActionOverrideAddressWithDomain(&rule.DefaultOptions.RuleAction, directTag, defaultMode, directMode)
+			applyRouteActionOverrideAddressWithDomain(&rule.DefaultOptions.RuleAction, directTag, endpointTags, defaultMode, directMode, endpointMode)
 		}
 	}
 }
@@ -260,17 +272,33 @@ func applyRouteOverrideAddressWithDomain(
 func applyRouteActionOverrideAddressWithDomain(
 	action *option.RuleAction,
 	directTag string,
+	endpointTags map[string]bool,
 	defaultMode option.RouteOverrideAddressWithDomain,
 	directMode option.RouteOverrideAddressWithDomain,
+	endpointMode option.RouteOverrideAddressWithDomain,
 ) {
 	if action.Action != C.RuleActionTypeRoute {
 		return
 	}
-	mode := defaultMode
-	if action.RouteOptions.Outbound == directTag {
-		mode = directMode
-	}
+	mode := routeOverrideAddressWithDomainMode(action.RouteOptions.Outbound, directTag, endpointTags, defaultMode, directMode, endpointMode)
 	if mode != "" {
 		action.RouteOptions.OverrideAddressWithDomain = mode
 	}
+}
+
+func routeOverrideAddressWithDomainMode(
+	outbound string,
+	directTag string,
+	endpointTags map[string]bool,
+	defaultMode option.RouteOverrideAddressWithDomain,
+	directMode option.RouteOverrideAddressWithDomain,
+	endpointMode option.RouteOverrideAddressWithDomain,
+) option.RouteOverrideAddressWithDomain {
+	if endpointTags[outbound] {
+		return endpointMode
+	}
+	if outbound == directTag {
+		return directMode
+	}
+	return defaultMode
 }

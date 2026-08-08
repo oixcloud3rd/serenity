@@ -245,9 +245,15 @@ func TestRenderDNSLocalPreferredByRule(t *testing.T) {
 			localDNS: "local",
 		},
 		{
-			name:     "sing-box 1.14 prerelease",
-			version:  "1.14.0-alpha.32",
+			name:     "before preferred_by support",
+			version:  "1.14.0-alpha.20",
 			localDNS: "local",
+		},
+		{
+			name:           "preferred_by support boundary",
+			version:        "1.14.0-alpha.21",
+			localDNS:       "local",
+			expectedServer: DNSLocalTag,
 		},
 		{
 			name:           "sing-box 1.14",

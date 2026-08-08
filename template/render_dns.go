@@ -244,7 +244,7 @@ func (t *Template) renderDNS(_ context.Context, metadata M.Metadata, options *op
 	} else if localDNSIsDomain || t.EnableLocalSetup {
 		preferredByServer = DNSLocalSetupTag
 	}
-	if preferredByServer != "" && (metadata.Version == nil || metadata.Version.GreaterThanOrEqual(semver.ParseVersion("1.14.0"))) {
+	if preferredByServer != "" && (metadata.Version == nil || metadata.Version.GreaterThanOrEqual(semver.ParseVersion("1.14.0-alpha.21"))) {
 		options.DNS.Rules = append(options.DNS.Rules, option.DNSRule{
 			Type: C.RuleTypeDefault,
 			DefaultOptions: option.DefaultDNSRule{

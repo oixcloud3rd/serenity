@@ -56,6 +56,9 @@
   "urltest_url": "",
   "disable_preconnect": false,
   "deduplication_strategy": "",
+  "destination_strategy": "",
+  "destination_strategy_direct": "",
+  "destination_strategy_endpoint": "",
   "custom_direct": {},
   "custom_selector": {},
   "custom_urltest": {},
@@ -63,9 +66,6 @@
   // Route
 
   "default_http_client": "",
-  "route_override_address_with_domain": "",
-  "route_override_address_with_domain_direct": "",
-  "route_override_address_with_domain_endpoint": "",
   "before_resolve_rules": [],
   "after_resolve_rules": [],
   "pre_rules": [],
@@ -304,6 +304,39 @@ Available values:
 - `prefer_domain_then_ipv4`: Prefer Domain > IPv4 > IPv6.
 - `prefer_domain_then_ipv6`: Prefer Domain > IPv6 > IPv4.
 
+#### destination_strategy
+
+Set the destination strategy on final non-group outbounds other than the direct outbound.
+
+Use `prefer_destination_addresses` or `prefer_destination`. To enable sniffed-domain evaluation, use the object form:
+
+```json
+{
+  "strategy": "prefer_destination",
+  "override_with_domain": {
+    "ip_only": true
+  }
+}
+```
+
+The presence of `override_with_domain` enables evaluation. `ip_only` limits domain override to connections whose original destination is an IP address.
+
+Serenity generates and references a single `default` domain evaluator when at least one destination strategy enables `override_with_domain`; evaluator tags are not exposed by the template.
+
+This option is only applied to sing-box 1.14.0-beta.12 and later. For older target versions, all destination strategies are omitted.
+
+#### destination_strategy_direct
+
+Set the destination strategy on the configured direct outbound. An empty value leaves its existing strategy unchanged and does not fall back to `destination_strategy`.
+
+The accepted forms, domain evaluator behavior, and version requirement are the same as `destination_strategy`.
+
+#### destination_strategy_endpoint
+
+Set the destination strategy on all supported client or dialing endpoints, including WireGuard and Tailscale endpoints. An empty value leaves existing endpoint strategies unchanged and does not fall back to `destination_strategy`.
+
+The accepted forms, domain evaluator behavior, and version requirement are the same as `destination_strategy`.
+
 #### custom_direct
 
 Custom [Direct](https://sing-box.sagernet.org/configuration/outbound/direct/) outbound template.
@@ -349,24 +382,6 @@ Use jsDelivr CDN and direct outbound for default rule sets or Geo resources.
 Default [HTTP Client](https://sing-box.sagernet.org/configuration/shared/http-client/) tag used by remote rule-sets.
 
 Only generated for sing-box 1.14.0 and later.
-
-#### route_override_address_with_domain
-
-Override `override_address_with_domain` on route actions that point to neither the direct outbound nor an endpoint. For a final in the same category, a trailing non-final `route-options` action applies this mode before final is selected.
-
-One of `disable`, `always`, or `if_resolvable`. An empty value leaves existing route action values unchanged.
-
-#### route_override_address_with_domain_direct
-
-Override `override_address_with_domain` on all route actions to the direct outbound. When final points to the direct outbound, a trailing non-final `route-options` action applies this mode before final is selected.
-
-One of `disable`, `always`, or `if_resolvable`. An empty value leaves existing direct route action values unchanged and does not fall back to `route_override_address_with_domain`.
-
-#### route_override_address_with_domain_endpoint
-
-Override `override_address_with_domain` on all route actions to endpoints, including WireGuard and Tailscale endpoints. When final points to an endpoint, a trailing non-final `route-options` action applies this mode before final is selected.
-
-One of `disable`, `always`, or `if_resolvable`. An empty value leaves existing endpoint route action values unchanged and does not fall back to `route_override_address_with_domain`.
 
 #### custom_geoip
 

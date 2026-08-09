@@ -55,32 +55,32 @@ type _Template struct {
 	CustomMixed        *TypedMessage[option.HTTPMixedInboundOptions] `json:"custom_mixed,omitempty"`
 
 	// Outbound
-	ExtraGroups           []ExtraGroup                    `json:"extra_groups,omitempty"`
-	DirectTag             string                          `json:"direct_tag,omitempty"`
-	BlockTag              string                          `json:"block_tag,omitempty"`
-	DefaultTag            string                          `json:"default_tag,omitempty"`
-	URLTestTag            string                          `json:"urltest_tag,omitempty"`
-	URLTestURL            string                          `json:"urltest_url,omitempty"`
-	DisablePreconnect     bool                            `json:"disable_preconnect,omitempty"`
-	DeduplicationStrategy string                          `json:"deduplication_strategy,omitempty"`
-	CustomDirect          *option.DirectOutboundOptions   `json:"custom_direct,omitempty"`
-	CustomSelector        *option.SelectorOutboundOptions `json:"custom_selector,omitempty"`
-	CustomURLTest         *option.URLTestOutboundOptions  `json:"custom_urltest,omitempty"`
+	ExtraGroups                 []ExtraGroup                    `json:"extra_groups,omitempty"`
+	DirectTag                   string                          `json:"direct_tag,omitempty"`
+	BlockTag                    string                          `json:"block_tag,omitempty"`
+	DefaultTag                  string                          `json:"default_tag,omitempty"`
+	URLTestTag                  string                          `json:"urltest_tag,omitempty"`
+	URLTestURL                  string                          `json:"urltest_url,omitempty"`
+	DisablePreconnect           bool                            `json:"disable_preconnect,omitempty"`
+	DeduplicationStrategy       string                          `json:"deduplication_strategy,omitempty"`
+	DestinationStrategy         *DestinationStrategy            `json:"destination_strategy,omitempty"`
+	DestinationStrategyDirect   *DestinationStrategy            `json:"destination_strategy_direct,omitempty"`
+	DestinationStrategyEndpoint *DestinationStrategy            `json:"destination_strategy_endpoint,omitempty"`
+	CustomDirect                *option.DirectOutboundOptions   `json:"custom_direct,omitempty"`
+	CustomSelector              *option.SelectorOutboundOptions `json:"custom_selector,omitempty"`
+	CustomURLTest               *option.URLTestOutboundOptions  `json:"custom_urltest,omitempty"`
 
 	// Route
-	DisableDefaultRules                    bool                                  `json:"disable_default_rules,omitempty"`
-	DefaultHTTPClient                      string                                `json:"default_http_client,omitempty"`
-	RouteOverrideAddressWithDomain         option.RouteOverrideAddressWithDomain `json:"route_override_address_with_domain,omitempty"`
-	RouteOverrideAddressWithDomainDirect   option.RouteOverrideAddressWithDomain `json:"route_override_address_with_domain_direct,omitempty"`
-	RouteOverrideAddressWithDomainEndpoint option.RouteOverrideAddressWithDomain `json:"route_override_address_with_domain_endpoint,omitempty"`
-	StartRules                             []option.Rule                         `json:"start_rules,omitempty"`
-	BeforeResolveRules                     []option.Rule                         `json:"before_resolve_rules,omitempty"`
-	AfterResolveRules                      []option.Rule                         `json:"after_resolve_rules,omitempty"`
-	PreRules                               []option.Rule                         `json:"pre_rules,omitempty"`
-	CustomRules                            []option.Rule                         `json:"custom_rules,omitempty"`
-	EnableJSDelivr                         bool                                  `json:"enable_jsdelivr,omitempty"`
-	CustomRuleSet                          []RuleSet                             `json:"custom_rule_set,omitempty"`
-	PostRuleSet                            []RuleSet                             `json:"post_rule_set,omitempty"`
+	DisableDefaultRules bool          `json:"disable_default_rules,omitempty"`
+	DefaultHTTPClient   string        `json:"default_http_client,omitempty"`
+	StartRules          []option.Rule `json:"start_rules,omitempty"`
+	BeforeResolveRules  []option.Rule `json:"before_resolve_rules,omitempty"`
+	AfterResolveRules   []option.Rule `json:"after_resolve_rules,omitempty"`
+	PreRules            []option.Rule `json:"pre_rules,omitempty"`
+	CustomRules         []option.Rule `json:"custom_rules,omitempty"`
+	EnableJSDelivr      bool          `json:"enable_jsdelivr,omitempty"`
+	CustomRuleSet       []RuleSet     `json:"custom_rule_set,omitempty"`
+	PostRuleSet         []RuleSet     `json:"post_rule_set,omitempty"`
 
 	//  Experimental
 	DisableCacheFile          bool `json:"disable_cache_file,omitempty"`

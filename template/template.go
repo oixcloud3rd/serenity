@@ -13,18 +13,19 @@ import (
 )
 
 const (
-	DefaultMixedPort     = 8080
-	DNSDefaultTag        = "default"
-	DNSLocalTag          = "local"
-	DNSLocalSetupTag     = "local_setup"
-	DNSFakeIPTag         = "fakeip"
-	DefaultDNS           = "tls://8.8.8.8"
-	DefaultDNSLocal      = "https://223.5.5.5/dns-query"
-	DefaultDefaultTag    = "default"
-	DefaultDirectTag     = "direct"
-	DefaultHTTPClientTag = "default"
-	DefaultBlockTag      = "block"
-	DefaultURLTestTag    = "URLTest"
+	DefaultMixedPort          = 8080
+	DNSDefaultTag             = "default"
+	DNSLocalTag               = "local"
+	DNSLocalSetupTag          = "local_setup"
+	DNSFakeIPTag              = "fakeip"
+	DefaultDNS                = "tls://8.8.8.8"
+	DefaultDNSLocal           = "https://223.5.5.5/dns-query"
+	DefaultDefaultTag         = "default"
+	DefaultDirectTag          = "direct"
+	DefaultHTTPClientTag      = "default"
+	DefaultBlockTag           = "block"
+	DefaultURLTestTag         = "URLTest"
+	DefaultDomainEvaluatorTag = "default"
 )
 
 var Default = new(Template)
@@ -69,6 +70,7 @@ func (t *Template) Render(ctx context.Context, metadata M.Metadata, profileName 
 	if err != nil {
 		return nil, E.Cause(err, "render outbounds")
 	}
+	t.renderDestinationStrategies(metadata, &options)
 	err = t.renderExperimental(ctx, metadata, &options, profileName)
 	if err != nil {
 		return nil, E.Cause(err, "render experimental")

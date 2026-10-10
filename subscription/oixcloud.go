@@ -26,6 +26,9 @@ import (
 
 const (
 	oixCloudUserAgent     = "FlClash for oixCloud"
+	oixCloudBuild         = "2026101003"
+	oixCloudClient        = "flclash"
+	oixCloudCapabilities  = "snell.ech.h3=1"
 	oixCloudResponseLimit = 16 * 1024 * 1024
 	oixCloudConfigLimit   = 10 * 1024 * 1024
 )
@@ -129,6 +132,9 @@ func fetchOIXCloudConfig(ctx context.Context, client *http.Client, endpoint stri
 	}
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("User-Agent", oixCloudUserAgent)
+	request.Header.Set("X-Flclash-Build", oixCloudBuild)
+	request.Header.Set("X-oixCloud-Client", oixCloudClient)
+	request.Header.Set("X-oixCloud-Capabilities", oixCloudCapabilities)
 	request.Header.Set("Authorization", "Bearer "+token)
 	request.Header.Set("X-Flclash-Timestamp", timestamp)
 	request.Header.Set("X-Flclash-Age-Pubkey", publicKey)

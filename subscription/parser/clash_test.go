@@ -211,6 +211,10 @@ func TestParseClashSnellECHTLSRejectsInvalidOptions(t *testing.T) {
 		{name: "preconnect without reuse", options: "      preconnect: 1\n", wantErr: "preconnect requires reuse"},
 		{name: "insecure", reuse: true, options: "      insecure: true\n", wantErr: "requires certificate verification"},
 		{name: "skip certificate verification", reuse: true, options: "      skip-cert-verify: true\n", wantErr: "requires certificate verification"},
+		{name: "unknown transport", reuse: true, options: "      transport: unknown\n", wantErr: "unsupported Snell ECH-TLS transport"},
+		{name: "h3 identity v1", reuse: true, options: "      transport: h3\n      identity-version: 1\n", wantErr: "identity-version 2 without legacy-fallback"},
+		{name: "auto legacy fallback", reuse: true, options: "      transport: auto\n      legacy-fallback: true\n", wantErr: "identity-version 2 without legacy-fallback"},
+		{name: "h3 preconnect without reuse", options: "      transport: h3\n      preconnect: 1\n", wantErr: "preconnect requires reuse"},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			content := fmt.Sprintf(`proxies:

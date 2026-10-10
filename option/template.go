@@ -55,20 +55,17 @@ type _Template struct {
 	CustomMixed        *TypedMessage[option.HTTPMixedInboundOptions] `json:"custom_mixed,omitempty"`
 
 	// Outbound
-	ExtraGroups                 []ExtraGroup                    `json:"extra_groups,omitempty"`
-	DirectTag                   string                          `json:"direct_tag,omitempty"`
-	BlockTag                    string                          `json:"block_tag,omitempty"`
-	DefaultTag                  string                          `json:"default_tag,omitempty"`
-	URLTestTag                  string                          `json:"urltest_tag,omitempty"`
-	URLTestURL                  string                          `json:"urltest_url,omitempty"`
-	DisablePreconnect           bool                            `json:"disable_preconnect,omitempty"`
-	DeduplicationStrategy       string                          `json:"deduplication_strategy,omitempty"`
-	DestinationStrategy         *DestinationStrategy            `json:"destination_strategy,omitempty"`
-	DestinationStrategyDirect   *DestinationStrategy            `json:"destination_strategy_direct,omitempty"`
-	DestinationStrategyEndpoint *DestinationStrategy            `json:"destination_strategy_endpoint,omitempty"`
-	CustomDirect                *option.DirectOutboundOptions   `json:"custom_direct,omitempty"`
-	CustomSelector              *option.SelectorOutboundOptions `json:"custom_selector,omitempty"`
-	CustomURLTest               *option.URLTestOutboundOptions  `json:"custom_urltest,omitempty"`
+	ExtraGroups           []ExtraGroup                    `json:"extra_groups,omitempty"`
+	DirectTag             string                          `json:"direct_tag,omitempty"`
+	BlockTag              string                          `json:"block_tag,omitempty"`
+	DefaultTag            string                          `json:"default_tag,omitempty"`
+	URLTestTag            string                          `json:"urltest_tag,omitempty"`
+	URLTestURL            string                          `json:"urltest_url,omitempty"`
+	DisablePreconnect     bool                            `json:"disable_preconnect,omitempty"`
+	DeduplicationStrategy string                          `json:"deduplication_strategy,omitempty"`
+	CustomDirect          *option.DirectOutboundOptions   `json:"custom_direct,omitempty"`
+	CustomSelector        *option.SelectorOutboundOptions `json:"custom_selector,omitempty"`
+	CustomURLTest         *option.URLTestOutboundOptions  `json:"custom_urltest,omitempty"`
 
 	// Route
 	DisableDefaultRules bool          `json:"disable_default_rules,omitempty"`

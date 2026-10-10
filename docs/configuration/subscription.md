@@ -23,6 +23,8 @@
         "security": ""
       },
       "rewrite_packet_encoding": "",
+      "rewrite_quic_congestion_control": "",
+      "rewrite_bbr_profile": null,
       "rewrite_utls": {
         "enabled": false,
         "fingerprint": ""
@@ -70,7 +72,9 @@ Supports:
 
 Every request uses a temporary age X25519 recipient. Serenity requires a valid HMAC-SHA256 response signature and an age-armored encrypted configuration; missing signatures, plaintext responses, invalid armor, or failed decryption are rejected. Credentials and complete managed URLs are never included in errors or logs. A refresh updates the bbolt cache only after verification, decryption, and parsing produce at least one valid outbound or endpoint, so a failed refresh preserves the last valid content and timestamp.
 
-The supported protocol set is the runnable intersection of the pinned FlClash Clash.Meta parser and the oixCloud sing-box `v1.14.0-beta.1` fork:
+Requests advertise `X-Flclash-Build: 2026101003`, `X-oixCloud-Client: flclash`, and `X-oixCloud-Capabilities: snell.ech.h3=1`, matching the reference oixfetch client. These headers do not change the HMAC signature input.
+
+The supported protocol set is the runnable intersection of the pinned FlClash Clash.Meta parser and the oixCloud sing-box fork based on `v1.14.3`:
 
 - Outbounds: AnyTLS, Direct, HTTP, Hysteria, Hysteria2, Reject (as Block), Snell, SOCKS5, Shadowsocks, SSH, Trojan, TUIC, VLESS, and VMess.
 - Endpoints: WireGuard, OpenVPN (as an OpenVPN client), and Tailscale.
@@ -78,6 +82,24 @@ The supported protocol set is the runnable intersection of the pinned FlClash Cl
 Unsupported Clash-only types are reported by name while other valid entries in the same subscription remain available. Subscription endpoints are automatically merged into the profile's `endpoints` and their tags participate in generated selectors, URLTests, extra groups, default groups, filtering, renaming, emoji removal, and duplicate-tag handling. Outbound-specific rewrite fields continue to affect outbounds only.
 
 The binary must be built with `OIXCLOUD_SUBSCRIPTION_HMAC_KEY`; builds without it continue to support all non-oixCloud subscription sources and return a clear error only when an `oixcloud://` URL is used. See [Build from source](../installation/build-from-source.md).
+
+##### Snell ECH-TLS transport
+
+Clash Snell nodes support `obfs-opts.transport`:
+
+| Value | Generated sing-box transport |
+| --- | --- |
+| Omitted or `tcp` | No `transport` field; existing TCP ECH-TLS behavior |
+| `h3` | `type: "http3"`, no TCP fallback |
+| `auto` | `type: "http3"`, `fallback: true` |
+
+Converted HTTP/3 nodes explicitly use `quic_congestion_control: "reno"`, matching the upstream default. Native sing-box subscriptions retain their transport, congestion controller, and BBR profile unchanged unless a process rewrite is configured.
+
+HTTP/3 requires Snell v4, identity v2, ECH, and certificate verification. Combining it with identity v1, `legacy-fallback: true`, or disabled certificate verification is rejected rather than silently converted to TCP. Unknown transport values are rejected. Other valid nodes remain available.
+
+The TCP ALPN remains `snell-ech/1`; the core selects `h3` for HTTP/3. SNI, ECH, reuse, preconnect, UDP, and TFO settings are preserved. Legacy `obfs-opts.path` is ignored, as in the source client: the core derives the HTTP/3 tunnel path from the PSK, not from a WebSocket configuration.
+
+The **client sing-box binary** must include `with_quic` to use HTTP/3, including `auto` mode. TCP fallback using a uTLS fingerprint also requires `with_utls`.
 
 #### user_agent
 
@@ -192,6 +214,26 @@ Enable or disable uTLS.
 Specify the uTLS fingerprint to use.
 
 Available values: `chrome`, `firefox`, `edge`, `safari`, `360`, `qq`, `ios`, `android`, `random`, `randomized`.
+
+#### process.rewrite_quic_congestion_control
+
+Rewrite the congestion controller on matching Snell HTTP/3 outbounds. Values: `reno`, `cubic`, or `bbr`. An omitted or empty value leaves the controller unchanged. This does not enable HTTP/3 on TCP nodes or change other protocols or endpoints.
+
+Switching to `reno` or `cubic` also clears any BBR profile. Selecting `bbr` preserves an existing profile, or uses the core's `standard` default if no profile is set.
+
+#### process.rewrite_bbr_profile
+
+Rewrite the BBR profile on matching Snell HTTP/3 outbounds. Values: `standard`, `conservative`, or `aggressive`. A nonempty profile requires `rewrite_quic_congestion_control: "bbr"` in the same process rule; invalid values or combinations are rejected when loading the process options.
+
+Omit the field or use `null` to leave the profile unchanged. Use `""` to clear it and restore the core's default. Process rules run in their configured order and use the existing filter semantics.
+
+```json
+{
+  "filter_type": ["snell"],
+  "rewrite_quic_congestion_control": "bbr",
+  "rewrite_bbr_profile": "conservative"
+}
+```
 
 #### deduplication
 

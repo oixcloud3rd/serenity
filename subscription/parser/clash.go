@@ -538,6 +538,7 @@ const (
 )
 
 type snellObfsOptions struct {
+	Transport         string `obfs:"transport,omitempty"`
 	Mode              string `obfs:"mode,omitempty"`
 	ALPN              string `obfs:"alpn,omitempty"`
 	Protocol          string `obfs:"protocol,omitempty"`
@@ -561,6 +562,15 @@ func applySnellObfs(target *option.SnellOutboundOptions, source *clash_outbound.
 	}
 	if sourceOptions.Fingerprint != "" {
 		return validateClashCertificateFingerprint(sourceOptions.Fingerprint)
+	}
+	switch sourceOptions.Transport {
+	case "", "tcp":
+	case "h3", "auto":
+		if sourceOptions.Mode != "ech-tls" {
+			return E.New("Snell HTTP/3 requires ECH-TLS")
+		}
+	default:
+		return E.New("unsupported Snell ECH-TLS transport: ", sourceOptions.Transport)
 	}
 	if sourceOptions.Mode == "" {
 		return nil
@@ -586,6 +596,16 @@ func applySnellObfs(target *option.SnellOutboundOptions, source *clash_outbound.
 	}
 	if identityVersion != 1 && identityVersion != 2 {
 		return E.New("unsupported Snell ECH-TLS identity version: ", identityVersion)
+	}
+	if sourceOptions.Transport == "h3" || sourceOptions.Transport == "auto" {
+		if identityVersion != 2 || sourceOptions.LegacyFallback {
+			return E.New("Snell HTTP/3 requires identity-version 2 without legacy-fallback")
+		}
+		target.Transport = &option.SnellTransportOptions{
+			Type:                  "http3",
+			Fallback:              sourceOptions.Transport == "auto",
+			QUICCongestionControl: "reno",
+		}
 	}
 	if sourceOptions.LegacyFallback {
 		identityVersion = 2
@@ -763,10 +783,6 @@ func clashOpenVPNEndpoint(source *clash_outbound.OpenVPNOption) (option.Endpoint
 	return option.Endpoint{Type: C.TypeOpenVPNClient, Tag: source.Name, Options: &option.OpenVPNClientEndpointOptions{
 		DialerOptions: clashDialerOptions(source.BasicOption), ServerOptions: option.ServerOptions{Server: source.Server, ServerPort: uint16(source.Port)},
 		OpenVPNEndpointOptions: option.OpenVPNEndpointOptions{Name: source.Name, MTU: uint32(source.MTU)}, Network: source.Proto,
-		// The target fork currently serializes zero-valued badoption.Addr fields
-		// as "invalid IP" even with omitempty. Valid unspecified addresses retain
-		// pull-mode semantics and keep rendered/cache JSON round-trippable.
-		PeerAddress: badoption.Addr(netip.IPv4Unspecified()), PeerAddressIPv6: badoption.Addr(netip.IPv6Unspecified()),
 		Username: source.Username, Password: source.Password, TLS: tlsOptions, Cipher: source.Cipher, Auth: source.Auth,
 		CompressionLZO: source.CompLZO,
 		PingInterval:   badoption.Duration(time.Duration(source.Ping) * time.Second), PingRestart: badoption.Duration(time.Duration(source.PingRestart) * time.Second),

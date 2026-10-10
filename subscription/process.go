@@ -24,6 +24,16 @@ type Rename struct {
 }
 
 func NewProcessOptions(options option.OutboundProcessOptions) (*ProcessOptions, error) {
+	transport := boxOption.SnellTransportOptions{
+		Type:                  "http3",
+		QUICCongestionControl: options.RewriteQUICCongestionControl,
+	}
+	if options.RewriteBBRProfile != nil && *options.RewriteBBRProfile != "" {
+		transport.BBRProfile = options.RewriteBBRProfile
+	}
+	if err := transport.Validate(); err != nil {
+		return nil, E.Cause(err, "invalid Snell transport rewrite")
+	}
 	var (
 		filter       []*regexp.Regexp
 		filterServer []*regexp.Regexp
@@ -86,6 +96,28 @@ func (o *ProcessOptions) Process(outbounds []boxOption.Outbound) []boxOption.Out
 		}
 		if o.Remove {
 			continue
+		}
+		if o.RewriteQUICCongestionControl != "" || o.RewriteBBRProfile != nil {
+			if source, ok := outbound.Options.(*boxOption.SnellOutboundOptions); ok &&
+				source.Transport != nil && source.Transport.Type == "http3" {
+				// Keep the cached source and transport shared by other profiles unchanged.
+				rewritten := *source
+				transport := *source.Transport
+				if o.RewriteQUICCongestionControl != "" {
+					transport.QUICCongestionControl = o.RewriteQUICCongestionControl
+					if transport.QUICCongestionControl != "bbr" {
+						transport.BBRProfile = nil
+					}
+				}
+				if o.RewriteBBRProfile != nil {
+					transport.BBRProfile = nil
+					if *o.RewriteBBRProfile != "" {
+						transport.BBRProfile = common.Ptr(*o.RewriteBBRProfile)
+					}
+				}
+				rewritten.Transport = &transport
+				outbound.Options = &rewritten
+			}
 		}
 		originTag := outbound.Tag
 		if len(o.rename) > 0 {

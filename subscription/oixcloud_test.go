@@ -39,6 +39,15 @@ func TestFetchOIXCloudConfig(t *testing.T) {
 		if request.Header.Get("User-Agent") != oixCloudUserAgent {
 			t.Errorf("unexpected user-agent: %q", request.Header.Get("User-Agent"))
 		}
+		for name, want := range map[string]string{
+			"X-Flclash-Build":         "2026101003",
+			"X-oixCloud-Client":       "flclash",
+			"X-oixCloud-Capabilities": "snell.ech.h3=1",
+		} {
+			if got := request.Header.Get(name); got != want {
+				t.Errorf("%s = %q, want %q", name, got, want)
+			}
+		}
 		timestamp := request.Header.Get("X-Flclash-Timestamp")
 		publicKey := request.Header.Get("X-Flclash-Age-Pubkey")
 		if timestamp != "1784900000" {

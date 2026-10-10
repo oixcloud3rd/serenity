@@ -56,9 +56,6 @@
   "urltest_url": "",
   "disable_preconnect": false,
   "deduplication_strategy": "",
-  "destination_strategy": "",
-  "destination_strategy_direct": "",
-  "destination_strategy_endpoint": "",
   "custom_direct": {},
   "custom_selector": {},
   "custom_urltest": {},
@@ -303,39 +300,6 @@ Available values:
 - `prefer_ipv6`: Prefer IPv6 > Domain > IPv4.
 - `prefer_domain_then_ipv4`: Prefer Domain > IPv4 > IPv6.
 - `prefer_domain_then_ipv6`: Prefer Domain > IPv6 > IPv4.
-
-#### destination_strategy
-
-Set the destination strategy on final non-group outbounds other than the direct outbound.
-
-Use `prefer_destination_addresses` or `prefer_destination`. To enable sniffed-domain evaluation, use the object form:
-
-```json
-{
-  "strategy": "prefer_destination",
-  "override_with_domain": {
-    "ip_only": true
-  }
-}
-```
-
-The presence of `override_with_domain` enables evaluation. `ip_only` limits domain override to connections whose original destination is an IP address.
-
-Serenity generates and references a single `default` domain evaluator when at least one destination strategy enables `override_with_domain`; evaluator tags are not exposed by the template.
-
-This option is only applied to sing-box 1.14.0-beta.12 and later. For older target versions, all destination strategies are omitted.
-
-#### destination_strategy_direct
-
-Set the destination strategy on the configured direct outbound. An empty value leaves its existing strategy unchanged and does not fall back to `destination_strategy`.
-
-The accepted forms, domain evaluator behavior, and version requirement are the same as `destination_strategy`.
-
-#### destination_strategy_endpoint
-
-Set the destination strategy on all supported client or dialing endpoints, including WireGuard and Tailscale endpoints. An empty value leaves existing endpoint strategies unchanged and does not fall back to `destination_strategy`.
-
-The accepted forms, domain evaluator behavior, and version requirement are the same as `destination_strategy`.
 
 #### custom_direct
 

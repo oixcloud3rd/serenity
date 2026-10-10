@@ -63,21 +63,23 @@ type Subscription struct {
 }
 
 type OutboundProcessOptions struct {
-	Filter                badoption.Listable[string]        `json:"filter,omitempty"`
-	FilterServer          badoption.Listable[string]        `json:"filter_server,omitempty"`
-	Exclude               badoption.Listable[string]        `json:"exclude,omitempty"`
-	FilterType            badoption.Listable[string]        `json:"filter_type,omitempty"`
-	ExcludeType           badoption.Listable[string]        `json:"exclude_type,omitempty"`
-	Invert                bool                              `json:"invert,omitempty"`
-	Remove                bool                              `json:"remove,omitempty"`
-	Rename                *badjson.TypedMap[string, string] `json:"rename,omitempty"`
-	RemoveEmoji           bool                              `json:"remove_emoji,omitempty"`
-	RewriteMultiplex      *option.OutboundMultiplexOptions  `json:"rewrite_multiplex,omitempty"`
-	RewriteDialerOptions  *option.DialerOptions             `json:"rewrite_dialer_options,omitempty"`
-	RewriteTLS            *option.OutboundTLSOptions        `json:"rewrite_tls,omitempty"`
-	RewriteVMessOptions   *option.VMessOutboundOptions      `json:"rewrite_vmess_options,omitempty"`
-	RewritePacketEncoding string                            `json:"rewrite_packet_encoding,omitempty"`
-	RewriteUTLS           *RewriteUTLSOptions               `json:"rewrite_utls,omitempty"`
+	Filter                       badoption.Listable[string]        `json:"filter,omitempty"`
+	FilterServer                 badoption.Listable[string]        `json:"filter_server,omitempty"`
+	Exclude                      badoption.Listable[string]        `json:"exclude,omitempty"`
+	FilterType                   badoption.Listable[string]        `json:"filter_type,omitempty"`
+	ExcludeType                  badoption.Listable[string]        `json:"exclude_type,omitempty"`
+	Invert                       bool                              `json:"invert,omitempty"`
+	Remove                       bool                              `json:"remove,omitempty"`
+	Rename                       *badjson.TypedMap[string, string] `json:"rename,omitempty"`
+	RemoveEmoji                  bool                              `json:"remove_emoji,omitempty"`
+	RewriteMultiplex             *option.OutboundMultiplexOptions  `json:"rewrite_multiplex,omitempty"`
+	RewriteDialerOptions         *option.DialerOptions             `json:"rewrite_dialer_options,omitempty"`
+	RewriteTLS                   *option.OutboundTLSOptions        `json:"rewrite_tls,omitempty"`
+	RewriteVMessOptions          *option.VMessOutboundOptions      `json:"rewrite_vmess_options,omitempty"`
+	RewritePacketEncoding        string                            `json:"rewrite_packet_encoding,omitempty"`
+	RewriteUTLS                  *RewriteUTLSOptions               `json:"rewrite_utls,omitempty"`
+	RewriteQUICCongestionControl string                            `json:"rewrite_quic_congestion_control,omitempty"`
+	RewriteBBRProfile            *string                           `json:"rewrite_bbr_profile,omitempty"`
 }
 
 type RewriteUTLSOptions struct {

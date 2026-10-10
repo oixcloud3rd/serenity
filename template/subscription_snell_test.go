@@ -91,7 +91,7 @@ func TestSnellTransportSubscriptionCacheAndExport(t *testing.T) {
 		t.Fatal("export did not preserve processed Snell options")
 	}
 	target := outbound.Options.(*boxOption.SnellOutboundOptions)
-	if target.Transport == nil || !target.Transport.Fallback ||
+	if target.Transport == nil || !target.Transport.HappyEyeballs ||
 		target.Transport.QUICCongestionControl != "bbr" ||
 		target.Transport.BBRProfile == nil || *target.Transport.BBRProfile != "conservative" {
 		t.Fatal("export lost transport rewrite")

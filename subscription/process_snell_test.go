@@ -40,7 +40,7 @@ func TestProcessRewriteSnellTransport(t *testing.T) {
 			original := &boxOption.SnellOutboundOptions{
 				AbstractSnellOutboundOptions: boxOption.AbstractSnellOutboundOptions{
 					Transport: &boxOption.SnellTransportOptions{
-						Type: "http3", Fallback: true, QUICCongestionControl: "bbr", BBRProfile: common.Ptr("aggressive"),
+						Type: "http3", HappyEyeballs: true, QUICCongestionControl: "bbr", BBRProfile: common.Ptr("aggressive"),
 					},
 				},
 			}
@@ -54,7 +54,7 @@ func TestProcessRewriteSnellTransport(t *testing.T) {
 			}
 			result := process.Process(source)
 			transport := result[0].Options.(*boxOption.SnellOutboundOptions).Transport
-			if transport.Type != "http3" || !transport.Fallback || transport.QUICCongestionControl != test.wantCC ||
+			if transport.Type != "http3" || !transport.HappyEyeballs || transport.QUICCongestionControl != test.wantCC ||
 				!reflect.DeepEqual(transport.BBRProfile, test.profile) {
 				t.Fatalf("unexpected rewritten transport: %#v", transport)
 			}

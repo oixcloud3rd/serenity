@@ -90,8 +90,12 @@ Clash Snell nodes support `obfs-opts.transport`:
 | Value | Generated sing-box transport |
 | --- | --- |
 | Omitted or `tcp` | No `transport` field; existing TCP ECH-TLS behavior |
-| `h3` | `type: "http3"`, no TCP fallback |
-| `auto` | `type: "http3"`, `fallback: true` |
+| `h3` | `type: "http3"`, Happy Eyeballs disabled (HTTP/3 only) |
+| `auto` | `type: "http3"`, `happy_eyeballs: true` |
+
+In `auto` mode the core starts HTTP/3 first, then races verified ECH-TLS TCP after a short delay (or immediately if HTTP/3 fails). The first verified transport wins before Snell authentication or application data is sent. This replaces the old sequential TCP fallback.
+
+The old native sing-box field `transport.fallback` is no longer accepted; replace it with `transport.happy_eyeballs`. Cached subscriptions containing the old field cannot be loaded and are fetched again on startup; refresh them successfully before relying on offline operation. Regenerated configurations require a client core supporting `happy_eyeballs`.
 
 Converted HTTP/3 nodes explicitly use `quic_congestion_control: "reno"`, matching the upstream default. Native sing-box subscriptions retain their transport, congestion controller, and BBR profile unchanged unless a process rewrite is configured.
 
@@ -99,7 +103,7 @@ HTTP/3 requires Snell v4, identity v2, ECH, and certificate verification. Combin
 
 The TCP ALPN remains `snell-ech/1`; the core selects `h3` for HTTP/3. SNI, ECH, reuse, preconnect, UDP, and TFO settings are preserved. Legacy `obfs-opts.path` is ignored, as in the source client: the core derives the HTTP/3 tunnel path from the PSK, not from a WebSocket configuration.
 
-The **client sing-box binary** must include `with_quic` to use HTTP/3, including `auto` mode. TCP fallback using a uTLS fingerprint also requires `with_utls`.
+The **client sing-box binary** must include `with_quic` to use HTTP/3, including `auto` mode. The TCP transport using a uTLS fingerprint also requires `with_utls`.
 
 #### user_agent
 

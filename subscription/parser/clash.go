@@ -603,7 +603,7 @@ func applySnellObfs(target *option.SnellOutboundOptions, source *clash_outbound.
 		}
 		target.Transport = &option.SnellTransportOptions{
 			Type:                  "http3",
-			Fallback:              sourceOptions.Transport == "auto",
+			HappyEyeballs:         sourceOptions.Transport == "auto",
 			QUICCongestionControl: "reno",
 		}
 	}

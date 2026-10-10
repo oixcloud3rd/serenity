@@ -50,7 +50,7 @@ func TestParseClashSnellTransport(t *testing.T) {
 				}
 			} else {
 				want := &option.SnellTransportOptions{
-					Type: "http3", Fallback: transport == "auto", QUICCongestionControl: "reno",
+					Type: "http3", HappyEyeballs: transport == "auto", QUICCongestionControl: "reno",
 				}
 				if !reflect.DeepEqual(target.Transport, want) {
 					t.Fatalf("transport=%#v, want %#v", target.Transport, want)
@@ -69,6 +69,10 @@ func TestParseClashSnellTransport(t *testing.T) {
 			}
 			if strings.Contains(string(encoded), "legacy-path") {
 				t.Fatal("legacy path must not be emitted")
+			}
+			if strings.Contains(string(encoded), `"fallback"`) ||
+				strings.Contains(string(encoded), `"happy_eyeballs":true`) != (transport == "auto") {
+				t.Fatalf("unexpected transport fields: %s", encoded)
 			}
 			var decoded option.Outbound
 			if err = json.UnmarshalContext(ctx, encoded, &decoded); err != nil {
@@ -92,7 +96,7 @@ func TestParseBoxSnellTransportPreservesExplicitOptions(t *testing.T) {
 			content := fmt.Sprintf(`{"outbounds":[{
 				"type":"snell","tag":"native","version":4,
 				"server":"127.0.0.1","server_port":443,"psk":"test-password","identity":2,
-				"transport":{"type":"http3","fallback":true,"quic_congestion_control":%q%s},
+				"transport":{"type":"http3","happy_eyeballs":true,"quic_congestion_control":%q%s},
 				"tls":{"enabled":true,"server_name":"public.example.com","ech":{"enabled":true}}
 			}]}`, algorithm, profile)
 			result, err := ParseSubscription(ctx, content)
@@ -100,7 +104,7 @@ func TestParseBoxSnellTransportPreservesExplicitOptions(t *testing.T) {
 				t.Fatalf("parse native transport: count=%d err=%v", len(result.Outbounds), err)
 			}
 			transport := result.Outbounds[0].Options.(*option.SnellOutboundOptions).Transport
-			if transport == nil || transport.Type != "http3" || !transport.Fallback ||
+			if transport == nil || transport.Type != "http3" || !transport.HappyEyeballs ||
 				transport.QUICCongestionControl != algorithm {
 				t.Fatalf("native transport was changed: %#v", transport)
 			}
@@ -109,5 +113,11 @@ func TestParseBoxSnellTransportPreservesExplicitOptions(t *testing.T) {
 			}
 			assertTargetOptionsRoundTrip(t, result)
 		})
+	}
+	if _, err := ParseBoxSubscription(ctx, `{"outbounds":[{
+		"type":"snell","tag":"legacy","version":4,
+		"transport":{"type":"http3","fallback":true}
+	}]}`); err == nil {
+		t.Fatal("removed transport.fallback field was accepted")
 	}
 }

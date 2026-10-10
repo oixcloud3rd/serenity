@@ -67,7 +67,6 @@ func TestProcessRewriteSnellTransport(t *testing.T) {
 			if result[1].Options != original || result[2].Options != tcp || result[3].Options != tuic {
 				t.Fatal("unmatched or non-H3 outbound was changed")
 			}
-
 		})
 	}
 }

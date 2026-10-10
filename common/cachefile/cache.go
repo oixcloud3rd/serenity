@@ -60,7 +60,7 @@ func (c *CacheFile) Start() error {
 	err = db.Batch(func(tx *bbolt.Tx) error {
 		return tx.ForEach(func(name []byte, b *bbolt.Bucket) error {
 			bucketName := string(name)
-			if !(common.Contains(bucketNameList, bucketName)) {
+			if !common.Contains(bucketNameList, bucketName) {
 				_ = tx.DeleteBucket(name)
 			}
 			return nil
